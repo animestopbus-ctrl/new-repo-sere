@@ -43,7 +43,7 @@ def run_speedtest_sync():
 
 async def speedtest_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("⚡"), is_big=True)
     except: pass
     msg = await update.message.reply_text("⏳ <b>Initializing Server Speedtest...</b>\n<i>This takes about 15 seconds.</i>", parse_mode=ParseMode.HTML)
     loop = asyncio.get_running_loop()
@@ -51,28 +51,28 @@ async def speedtest_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         img_url = await loop.run_in_executor(None, run_speedtest_sync)
         sent_photo = await update.message.reply_photo(photo=img_url, caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🚀 <b>SERVER SPEEDTEST COMPLETE</b>", parse_mode=ParseMode.HTML)
         await msg.delete()
-        try: await sent_photo.set_reaction(reaction=ReactionTypeEmoji("⚡"), is_big=True)
+        try: await sent_photo.set_reaction(reaction=ReactionTypeEmoji("🚀"), is_big=True)
         except: pass
     except Exception as e:
         await msg.edit_text(f"❌ <b>Speedtest Failed:</b> <code>{str(e)}</code>", parse_mode=ParseMode.HTML)
 
 async def logs_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("📄"), is_big=True)
     except: pass
     if os.path.exists("bot.log"): await update.message.reply_document(document=open("bot.log", "rb"), caption="📄 System Logs")
     else: await update.message.reply_text("❌ No bot.log file found.")
 
 async def restart_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("🔄"), is_big=True)
     except: pass
     await update.message.reply_text("🔄 <b>Restarting Engine...</b>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 async def update_bot_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("⬇️"), is_big=True)
     except: pass
     await update.message.reply_text("⬇️ <b>Pulling from GitHub...</b>", parse_mode=ParseMode.HTML)
     os.system("git pull")
@@ -81,22 +81,22 @@ async def update_bot_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def maintenance_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("🚧"), is_big=True)
     except: pass
     new_state = await db.toggle_maintenance()
-    status = "🔴 ENABLED (Bot is locked)" if new_state else "🟢 DISABLED (Bot is open)"
+    status = "🔴 ENABLED" if new_state else "🟢 DISABLED"
     await update.message.reply_text(f"🚧 <b>MAINTENANCE MODE:</b> {status}", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def users_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("👥"), is_big=True)
     except: pass
     total = await db.total_users_count()
-    await update.message.reply_text(f"👥 <b>Total Registered Users:</b> <code>{total}</code>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    await update.message.reply_text(f"👥 <b>Total Users:</b> <code>{total}</code>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("📊"), is_big=True)
     except: pass
     total_users = await db.total_users_count()
     db_storage = await db.get_db_stats()
@@ -105,7 +105,7 @@ async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("📢"), is_big=True)
     except: pass
     reply_msg = update.message.reply_to_message
     if not reply_msg: return await update.message.reply_text("❌ <b>Error:</b> Reply to a message.", parse_mode=ParseMode.HTML)
@@ -121,7 +121,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def add_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("💎"), is_big=True)
     except: pass
     try:
         t_id, days = int(context.args[0]), int(context.args[1])
@@ -131,27 +131,27 @@ async def add_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def remove_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("🚫"), is_big=True)
     except: pass
     try:
         t_id = int(context.args[0])
         await db.revoke_premium(t_id)
-        await update.message.reply_text(f"🚫 Premium revoked from <code>{t_id}</code>.", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+        await update.message.reply_text(f"🚫 Premium revoked from <code>{t_id}</code>.", parse_mode=ParseMode.HTML)
     except: await update.message.reply_text("❌ /removepremium [ID]", parse_mode=ParseMode.HTML)
 
 async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("🔨"), is_big=True)
     except: pass
     try:
         t_id = int(context.args[0])
         await db.ban_user(t_id)
-        await update.message.reply_text(f"🔨 Banned: <code>{t_id}</code>.", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+        await update.message.reply_text(f"🔨 Banned: <code>{t_id}</code>.", parse_mode=ParseMode.HTML)
     except: await update.message.reply_text("❌ /ban [ID]", parse_mode=ParseMode.HTML)
 
 async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("✅"), is_big=True)
     except: pass
     try:
         t_id = int(context.args[0])
@@ -159,6 +159,7 @@ async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Unbanned: <code>{t_id}</code>.", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     except: await update.message.reply_text("❌ /unban [ID]", parse_mode=ParseMode.HTML)
 
+# ================= GRAPHICAL UI PANEL =================
 def get_panel_markup():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📜 User List", callback_data="admin_list_0", api_kwargs={"style": "primary"}), InlineKeyboardButton("📊 DB Stats", callback_data="admin_stats", api_kwargs={"style": "success"})],
@@ -185,7 +186,13 @@ async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(1.2) 
         await sticker_msg.delete()
     except: pass
-    sent_msg = await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\n<blockquote>Select an option below to manage the engine.</blockquote>", parse_mode=ParseMode.HTML, reply_markup=get_panel_markup())
+
+    sent_msg = await update.message.reply_photo(
+        photo=random.choice(secret.IMAGE_LINKS), 
+        caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\n<blockquote>Select an operation from the master console below.</blockquote>", 
+        parse_mode=ParseMode.HTML, 
+        reply_markup=get_panel_markup()
+    )
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("🛡️"), is_big=True)
     except: pass
 
@@ -197,19 +204,21 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "admin_close": await query.message.delete()
     elif data == "admin_home":
-        try: await query.edit_message_caption(caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\n<blockquote>Select an option below to manage the engine.</blockquote>", parse_mode=ParseMode.HTML, reply_markup=get_panel_markup())
+        try: await query.edit_message_caption(caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\n<blockquote>Select an operation from the master console below.</blockquote>", parse_mode=ParseMode.HTML, reply_markup=get_panel_markup())
         except: pass
     elif data == "admin_cmds":
-        try: await query.edit_message_caption(caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛠️ <b>ADMIN COMMAND DIRECTORY</b>\n\n<blockquote>Click a command below to view its details and usage.</blockquote>", parse_mode=ParseMode.HTML, reply_markup=get_cmds_markup())
+        try: await query.edit_message_caption(caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛠️ <b>ADMIN COMMAND DIRECTORY</b>\n\n<blockquote>Click a command to view detailed documentation.</blockquote>", parse_mode=ParseMode.HTML, reply_markup=get_cmds_markup())
         except: pass
     elif data.startswith("cmd_help_"):
         cmd = data.split("_")[2]
         info = ADMIN_CMDS.get(cmd, "Info not found.")
-        markup = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Commands", callback_data="admin_cmds", api_kwargs={"style": "primary"})]])
-        try: await query.edit_message_caption(caption=f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛠️ <b>COMMAND INFO</b>\n\n<blockquote>{info}</blockquote>", parse_mode=ParseMode.HTML, reply_markup=markup)
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="admin_cmds", api_kwargs={"style": "primary"})]])
+        try: await query.edit_message_caption(caption=f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛠️ <b>/{cmd} INFO</b>\n\n<blockquote>{info}</blockquote>", parse_mode=ParseMode.HTML, reply_markup=markup)
         except: pass
     elif data == "admin_stats":
-        stats = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n📊 <b>SYSTEM STATS</b>\n<blockquote>├ 👥 Total Users: <code>{await db.total_users_count()}</code>\n╰ 🗄️ DB Size: <code>{await db.get_db_stats()}</code></blockquote>"
+        total = await db.total_users_count()
+        db_size = await db.get_db_stats()
+        stats = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n📊 <b>SYSTEM STATS</b>\n<blockquote>├ 👥 Total Users: <code>{total}</code>\n╰ 🗄️ DB Size: <code>{db_size}</code></blockquote>"
         try: await query.edit_message_caption(caption=stats, parse_mode=ParseMode.HTML, reply_markup=get_panel_markup())
         except: pass
     elif data.startswith("admin_list_"):

@@ -20,6 +20,9 @@ class Database:
             'join_date': datetime.datetime.now().isoformat(),
             'files_processed': 0,
             'is_premium': False,
+            'premium_expiry': None,
+            'daily_usage': 0,
+            'limit_reset_time': None,
             'is_banned': False
         }
 
@@ -31,21 +34,80 @@ class Database:
             return True
         return False
 
+    # ================= LIMITS & PREMIUM =================
+    async def check_premium_status(self, id):
+        """Silently checks if a user's premium has expired and revokes it if so."""
+        user = await self.col.find_one({'id': int(id)})
+        if not user or not user.get('is_premium'): return False
+        
+        expiry = user.get('premium_expiry')
+        if expiry and datetime.datetime.now() > expiry:
+            await self.col.update_one({'id': int(id)}, {'$set': {'is_premium': False, 'premium_expiry': None}})
+            return False
+        return True
+
+    async def check_limit(self, id):
+        """Returns True if user is BLOCKED (Limit Reached), False if ALLOWED."""
+        user = await self.col.find_one({'id': int(id)})
+        if not user: return False
+
+        if await self.check_premium_status(id): return False # Premium ignores limits
+            
+        now = datetime.datetime.now()
+        reset_time = user.get('limit_reset_time')
+
+        # If time passed, reset to 0
+        if reset_time is None or now >= reset_time:
+            await self.col.update_one({'id': int(id)}, {'$set': {'daily_usage': 0, 'limit_reset_time': None}})
+            return False 
+
+        if user.get('daily_usage', 0) >= 10:
+            return True # BLOCKED
+        return False
+
+    async def add_traffic(self, id):
+        """Increments usage. Starts 24h timer on first use."""
+        user = await self.col.find_one({'id': int(id)})
+        if not user or user.get('is_premium'): return
+
+        now = datetime.datetime.now()
+        reset_time = user.get('limit_reset_time')
+
+        if reset_time is None or now >= reset_time:
+            new_reset = now + datetime.timedelta(hours=24)
+            await self.col.update_one({'id': int(id)}, {'$set': {'daily_usage': 1, 'limit_reset_time': new_reset}, '$inc': {'files_processed': 1}})
+        else:
+            await self.col.update_one({'id': int(id)}, {'$inc': {'daily_usage': 1, 'files_processed': 1}})
+
+    # ================= ADMIN TOOLS =================
+    async def grant_premium(self, id, days):
+        expiry = datetime.datetime.now() + datetime.timedelta(days=days)
+        await self.col.update_one({'id': int(id)}, {'$set': {'is_premium': True, 'premium_expiry': expiry, 'daily_usage': 0, 'limit_reset_time': None}})
+
+    async def revoke_premium(self, id):
+        await self.col.update_one({'id': int(id)}, {'$set': {'is_premium': False, 'premium_expiry': None}})
+
+    async def ban_user(self, id):
+        await self.col.update_one({'id': int(id)}, {'$set': {'is_banned': True}})
+
+    async def unban_user(self, id):
+        await self.col.update_one({'id': int(id)}, {'$set': {'is_banned': False}})
+
+    async def is_banned(self, id):
+        user = await self.col.find_one({'id': int(id)})
+        return user.get('is_banned', False) if user else False
+
+    async def get_users_page(self, skip=0, limit=10):
+        cursor = self.col.find({}).skip(skip).limit(limit)
+        return await cursor.to_list(length=limit)
+
     async def total_users_count(self):
         return await self.col.count_documents({})
 
-    async def increment_files(self, id):
-        await self.col.update_one({'id': int(id)}, {'$inc': {'files_processed': 1}})
-
     async def get_db_stats(self):
-        """Fetches the actual storage size of the MongoDB Database"""
         try:
             stats = await self.db.command("dbstats")
-            storage_size = stats.get("storageSize", 0) / (1024 * 1024) # Convert bytes to MB
-            return f"{storage_size:.2f} MB"
-        except Exception as e:
-            logger.error(f"Error fetching DB stats: {e}")
-            return "Unknown"
+            return f"{(stats.get('storageSize', 0) / (1024 * 1024)):.2f} MB"
+        except Exception: return "Unknown"
 
-# 🚀 EXPORT THE DB INSTANCE FOR THE WHOLE BOT TO USE
 db = Database(secret.MONGO_URI, "TitaniumDB")

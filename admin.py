@@ -139,7 +139,7 @@ async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= GRAPHICAL UI PANEL =================
 def get_panel_markup():
-    # 🔥 STYLES RESTORED TO CALLBACK BUTTONS 🔥
+    # 🔥 OFFICIAL COLORS ONLY (primary, success, danger) 🔥
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📜 User List", callback_data="admin_list_0", api_kwargs={"style": "primary"}), InlineKeyboardButton("📊 DB Stats", callback_data="admin_stats", api_kwargs={"style": "success"})],
         [InlineKeyboardButton("🛠️ Admin Commands Directory", callback_data="admin_cmds", api_kwargs={"style": "primary"})],
@@ -150,8 +150,8 @@ def get_cmds_markup():
     kb = []
     cmds = list(ADMIN_CMDS.keys())
     for i in range(0, len(cmds), 2):
-        row = [InlineKeyboardButton(f"/{cmds[i]}", callback_data=f"cmd_help_{cmds[i]}", api_kwargs={"style": "secondary"})]
-        if i+1 < len(cmds): row.append(InlineKeyboardButton(f"/{cmds[i+1]}", callback_data=f"cmd_help_{cmds[i+1]}", api_kwargs={"style": "secondary"}))
+        row = [InlineKeyboardButton(f"/{cmds[i]}", callback_data=f"cmd_help_{cmds[i]}", api_kwargs={"style": "primary"})]
+        if i+1 < len(cmds): row.append(InlineKeyboardButton(f"/{cmds[i+1]}", callback_data=f"cmd_help_{cmds[i+1]}", api_kwargs={"style": "primary"}))
         kb.append(row)
     kb.append([InlineKeyboardButton("⬅️ Back to Panel", callback_data="admin_home", api_kwargs={"style": "danger"})])
     return InlineKeyboardMarkup(kb)

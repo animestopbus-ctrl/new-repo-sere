@@ -31,29 +31,26 @@ async def startup_setup(app):
         BotCommand("id", "🆔 Get your Telegram ID"),
         BotCommand("status", "🟢 View bot uptime and health"),
         BotCommand("feedback", "📬 Send a message to the developer"),
-        BotCommand("set_caption", "💎 [Premium] Set a custom caption"),
-        BotCommand("my_caption", "💎 [Premium] View your custom caption"),
-        BotCommand("panel", "👑 [Admin] Open Control Dashboard"),
-        BotCommand("speedtest", "👑 [Admin] Check server network speed"),
-        BotCommand("maintenance", "👑 [Admin] Toggle Maintenance Mode")
+        BotCommand("set_caption", "💎 Set custom caption"),
+        BotCommand("panel", "👑 [Admin] Open Dashboard")
     ]
     try: await app.bot.set_my_commands(menu_commands)
     except: pass
 
     if secret.LOG_CHANNEL_ID:
         try:
-            msg = f"🚀 <b>BOT ENGINE INITIATED</b>\n\n<blockquote>🤖 <b>Bot Name:</b> @{app.bot.username}\n🌍 <b>Hosted On:</b> Render.com\n🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n⚙️ <b>Workers:</b> {secret.WORKERS} Parallel Threads Active\n🗄️ <b>Database:</b> MongoDB Synchronized\n🎛️ <b>UI:</b> Telegram Menu Injected</blockquote>"
+            msg = f"🚀 <b>BOT ENGINE INITIATED</b>\n\n<blockquote>🤖 <b>Bot Name:</b> @{app.bot.username}\n🌍 <b>Hosted On:</b> Render.com\n🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n⚙️ <b>Workers:</b> {secret.WORKERS} Active</blockquote>"
             await app.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=msg, parse_mode=ParseMode.HTML, disable_notification=True)
         except: pass
 
 
 if __name__ == '__main__':
-    print("🚀 TITANIUM 37.0 (ANIMATIONS & REACTIONS RESTORED).")
+    print("🚀 TITANIUM 37.1 (FULL REPAIR ONLINE).")
     
     keep_alive()
     app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).concurrent_updates(True).post_init(startup_setup).build()
     
-    # 🟢 CORE USER UTILITIES
+    # 🟢 USER COMMANDS
     app.add_handler(CommandHandler("start", script.start))
     app.add_handler(CommandHandler("help", script.help_cmd))
     app.add_handler(CommandHandler("info", script.info_cmd))
@@ -67,15 +64,15 @@ if __name__ == '__main__':
     # 🎥 MEDIA ENGINE
     app.add_handler(MessageHandler(filters.VIDEO | filters.Document.ALL, script.handle_media))
     
-    # 🔥 RANDOM TEXT ENGINE (Reacts to random user messages)
+    # 🔥 RANDOM TEXT ENGINE (Reacts to non-cmd messages with Effects)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, script.handle_text))
     
-    # 💎 PREMIUM SETTINGS
+    # 💎 PREMIUM
     app.add_handler(CommandHandler("set_caption", script.set_cap))
     app.add_handler(CommandHandler("del_caption", script.del_cap))
     app.add_handler(CommandHandler("my_caption", script.my_cap))
     
-    # 👑 ADMIN COMMANDS
+    # 👑 ADMIN
     app.add_handler(CommandHandler("panel", admin.panel))
     app.add_handler(CommandHandler("stats", admin.stats_cmd)) 
     app.add_handler(CommandHandler("broadcast", admin.broadcast)) 
@@ -90,7 +87,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("update", admin.update_bot_cmd))
     app.add_handler(CommandHandler("maintenance", admin.maintenance_cmd))
     
-    # Callbacks
+    # 🔥 FIXED CALLBACK HANDLERS 🔥
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     

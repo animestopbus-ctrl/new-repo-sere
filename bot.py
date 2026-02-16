@@ -13,8 +13,12 @@ import secret
 import script
 import admin 
 
-# Configure Logging (SILENCING HTTPX SPAM)
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+# 📄 LOGGING CONFIGURATION (Added FileHandler for /logs command)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
+    level=logging.INFO,
+    handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()]
+)
 logging.getLogger("httpx").setLevel(logging.WARNING) 
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
@@ -25,11 +29,20 @@ async def startup_setup(app):
     menu_commands = [
         BotCommand("start", "⚡ Boot up the engine"),
         BotCommand("settings", "⚙️ Account dashboard & limits"),
+        BotCommand("profile", "⚙️ Account dashboard & limits"),
         BotCommand("help", "📚 How to use the bot"),
         BotCommand("info", "ℹ️ About the bot & developer"),
+        BotCommand("details", "ℹ️ About the bot & developer"),
+        BotCommand("ping", "📶 Check bot server latency"),
+        BotCommand("id", "🆔 Get your Telegram ID"),
+        BotCommand("status", "🟢 View bot uptime and health"),
         BotCommand("feedback", "📬 Send a message to the developer"),
         BotCommand("set_caption", "💎 [Premium] Set a custom caption"),
-        BotCommand("my_caption", "💎 [Premium] View your custom caption")
+        BotCommand("my_caption", "💎 [Premium] View your custom caption"),
+        # Admin Commands in Menu
+        BotCommand("panel", "👑 [Admin] Open Control Dashboard"),
+        BotCommand("speedtest", "👑 [Admin] Check server network speed"),
+        BotCommand("maintenance", "👑 [Admin] Toggle Maintenance Mode")
     ]
     try:
         await app.bot.set_my_commands(menu_commands)
@@ -37,7 +50,7 @@ async def startup_setup(app):
     except Exception as e:
         logging.error(f"Failed to inject menu commands: {e}")
 
-    # 2. 📢 SEND SILENT LOG TO CHANNEL ONLY (No Admin DM)
+    # 2. 📢 SEND SILENT LOG TO CHANNEL ONLY
     if secret.LOG_CHANNEL_ID:
         try:
             msg = (
@@ -62,7 +75,7 @@ async def startup_setup(app):
 
 
 if __name__ == '__main__':
-    print("🚀 TITANIUM 32.0 (MENU INJECTOR & SILENT BOOT ONLINE).")
+    print("🚀 TITANIUM 33.0 (ULTIMATE CONTROL UPDATE ONLINE).")
     
     keep_alive()
     
@@ -72,17 +85,22 @@ if __name__ == '__main__':
         .token(secret.BOT_TOKEN)
         .connection_pool_size(secret.WORKERS) 
         .concurrent_updates(True)             
-        .post_init(startup_setup) # <--- Triggers Menu Injection & Logging             
+        .post_init(startup_setup)            
         .build()
     )
     
     # 🟢 CORE USER UTILITIES 🟢
     app.add_handler(CommandHandler("start", script.start))
     app.add_handler(CommandHandler("help", script.help_cmd))
-    app.add_handler(CommandHandler("info", script.info_cmd))
-    app.add_handler(CommandHandler("settings", script.settings_cmd))
+    app.add_handler(CommandHandler(["info", "details"], script.info_cmd))
+    app.add_handler(CommandHandler(["settings", "profile"], script.settings_cmd))
     app.add_handler(CommandHandler("feedback", script.feedback_cmd))
     app.add_handler(CommandHandler("alive", script.alive_cmd))
+    
+    # 🛠️ DIAGNOSTICS 
+    app.add_handler(CommandHandler("ping", script.ping_cmd))
+    app.add_handler(CommandHandler("id", script.id_cmd))
+    app.add_handler(CommandHandler("status", script.status_cmd))
     
     # 🎥 MEDIA ENGINE
     app.add_handler(MessageHandler(filters.VIDEO | filters.Document.ALL, script.handle_media))
@@ -92,7 +110,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("del_caption", script.del_cap))
     app.add_handler(CommandHandler("my_caption", script.my_cap))
     
-    # 👑 ADMIN DASHBOARD
+    # 👑 ADMIN COMMANDS & DASHBOARD
     app.add_handler(CommandHandler("panel", admin.panel))
     app.add_handler(CommandHandler("stats", admin.stats_cmd)) 
     app.add_handler(CommandHandler("broadcast", admin.broadcast)) 
@@ -100,9 +118,15 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("removepremium", admin.remove_premium))
     app.add_handler(CommandHandler("ban", admin.ban))
     app.add_handler(CommandHandler("unban", admin.unban))
+    app.add_handler(CommandHandler("speedtest", admin.speedtest_cmd))
+    app.add_handler(CommandHandler("users", admin.users_cmd))
+    app.add_handler(CommandHandler("logs", admin.logs_cmd))
+    app.add_handler(CommandHandler("restart", admin.restart_cmd))
+    app.add_handler(CommandHandler("update", admin.update_bot_cmd))
+    app.add_handler(CommandHandler("maintenance", admin.maintenance_cmd))
     
     # Callback Routers
-    app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^admin_"))
+    app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^admin_|^cmd_help_"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     
     app.run_polling()

@@ -2,36 +2,33 @@ import os
 
 # 🚨 CORE CREDENTIALS 🚨
 BOT_TOKEN = os.getenv("BOT_TOKEN", "7940504106:AAGo7wvSTxcu8Uq80ltFZ9wpOxZiigHrGTw")
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://LastPerson07:N7z0DRcklsZzqCzd@storagebot.5fuk3xn.mongodb.net/?appName=StorageBot")
+MONGO_URI = os.getenv("MONGO_URI", "MONGO_URI", "mongodb+srv://LastPerson07:N7z0DRcklsZzqCzd@storagebot.5fuk3xn.mongodb.net/?appName=StorageBot")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "1633472140"))
 
 LOG_CHANNEL_STR = os.getenv("LOG_CHANNEL_ID", "-1003144372708")
-try:
-    LOG_CHANNEL_ID = int(LOG_CHANNEL_STR)
-except ValueError:
-    LOG_CHANNEL_ID = None
+try: LOG_CHANNEL_ID = int(LOG_CHANNEL_STR)
+except ValueError: LOG_CHANNEL_ID = None
 
 # 🛑 FORCE SUBSCRIBE (FSUB) CONFIG 🛑
 FSUB_CHANNEL_ID_STR = os.getenv("FSUB_CHANNEL_ID", "-1001557378145") 
-try:
-    FSUB_CHANNEL_ID = int(FSUB_CHANNEL_ID_STR)
-except ValueError:
-    FSUB_CHANNEL_ID = None
+try: FSUB_CHANNEL_ID = int(FSUB_CHANNEL_ID_STR)
+except ValueError: FSUB_CHANNEL_ID = None
 FSUB_CHANNEL_LINK = os.getenv("FSUB_CHANNEL_LINK", "https://t.me/THEUPDATEDGUYS")
 
 # ⚙️ PERFORMANCE CONFIG ⚙️
-WORKERS = int(os.getenv("WORKERS", "10")) # Number of parallel users handled simultaneously
+WORKERS = int(os.getenv("WORKERS", "10")) 
 
 # ================= ASSETS & EFFECTS =================
-# 2026 Telegram Message Effects
+# 🔥 STRICTLY OFFICIAL TELEGRAM REACTIONS (Prevents API Silent Fails)
+EMOJIS = ["👍", "❤️", "🔥", "🥰", "👏", "🎉", "🤩", "🙏", "👌", "💯", "⚡", "🏆", "🤝", "🫡", "👨‍💻", "👀", "🐳"]
+
+# 2026 Telegram Message Effects (For Text Messages)
 MESSAGE_EFFECTS = [
     "5104841245755180586", # 🔥 Fire
     "5044134455711629726", # ❤️ Heart
     "5046509860389126442", # 🎉 Party
     "5107584321108051014"  # 👍 Thumbs Up
 ]
-
-EMOJIS = ["🌟", "🔥", "🎉", "⚡", "🏆", "💎", "💯", "😎", "✨", "🚀"]
 
 LOADING_STICKERS = [
     "CAACAgUAAxkBAAEQLstpXRZxNxFMteYSkppBZ63fuBhVtQACFBgAAtDQQVbGUaezY8jttzgE",
@@ -76,5 +73,3 @@ HELP_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
 4️⃣ I generate a beautiful, categorized layout and send the file back to you with its original HD thumbnail perfectly intact!
 
 <i>💡 <b>Pro Tip:</b> If the AI catches the wrong movie, tap the "🔄 RE-VERIFY" button!</i>"""
-
-

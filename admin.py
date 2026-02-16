@@ -2,7 +2,7 @@ import random
 import time
 import asyncio
 import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, ReactionTypeEmoji
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 import secret
@@ -21,6 +21,9 @@ def is_admin(user_id):
 # ================= ADMIN TEXT COMMANDS =================
 async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    except: pass
+
     total_users = await db.total_users_count()
     db_storage = await db.get_db_stats()
     uptime = get_uptime()
@@ -33,16 +36,17 @@ async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🗄️ <b>DB Storage:</b> <code>{db_storage}</code>"
         f"</blockquote>"
     )
-    await update.message.reply_text(stats_text, parse_mode=ParseMode.HTML)
+    await update.message.reply_text(stats_text, parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 # 📣 MASS BROADCASTER
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    except: pass
     
     reply_msg = update.message.reply_to_message
     if not reply_msg:
-        await update.message.reply_text("❌ <b>Error:</b> You must reply to a message to broadcast it.", parse_mode=ParseMode.HTML)
-        return
+        return await update.message.reply_text("❌ <b>Error:</b> You must reply to a message to broadcast it.", parse_mode=ParseMode.HTML)
 
     msg = await update.message.reply_text("⏳ <b>Broadcasting Initiated...</b>", parse_mode=ParseMode.HTML)
     
@@ -53,23 +57,26 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await reply_msg.copy(user['id'], reply_markup=reply_msg.reply_markup)
             success += 1
-            await asyncio.sleep(0.05) # Prevent Telegram FloodWait Bans
-        except Exception:
-            failed += 1
+            await asyncio.sleep(0.05) 
+        except Exception: failed += 1
 
     await msg.edit_text(f"✅ <b>Broadcast Complete!</b>\n\n🟢 <b>Success:</b> <code>{success}</code>\n🔴 <b>Failed:</b> <code>{failed}</code> (Users blocked the bot)", parse_mode=ParseMode.HTML)
 
 async def add_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    except: pass
     try:
         target_id = int(context.args[0])
         days = int(context.args[1])
         await db.grant_premium(target_id, days)
-        await update.message.reply_text(f"💎 <b>SUCCESS:</b> User <code>{target_id}</code> granted Premium for {days} days!", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"💎 <b>SUCCESS:</b> User <code>{target_id}</code> granted Premium for {days} days!", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     except: await update.message.reply_text("❌ <b>Format:</b> <code>/addpremium [User_ID] [Days]</code>", parse_mode=ParseMode.HTML)
 
 async def remove_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    except: pass
     try:
         target_id = int(context.args[0])
         await db.revoke_premium(target_id)
@@ -78,6 +85,8 @@ async def remove_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    except: pass
     try:
         target_id = int(context.args[0])
         await db.ban_user(target_id)
@@ -86,10 +95,12 @@ async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    except: pass
     try:
         target_id = int(context.args[0])
         await db.unban_user(target_id)
-        await update.message.reply_text(f"✅ <b>UNBANNED:</b> User <code>{target_id}</code>.", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"✅ <b>UNBANNED:</b> User <code>{target_id}</code>.", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     except: await update.message.reply_text("❌ <b>Format:</b> <code>/unban [User_ID]</code>", parse_mode=ParseMode.HTML)
 
 # ================= THE GRAPHICAL UI PANEL =================
@@ -101,9 +112,17 @@ def get_panel_markup():
 
 async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    except: pass
     try: await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
     except: pass
-    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\nSelect an option below to manage the engine.", parse_mode=ParseMode.HTML, reply_markup=get_panel_markup())
+    await update.message.reply_photo(
+        photo=random.choice(secret.IMAGE_LINKS), 
+        caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\nSelect an option below to manage the engine.", 
+        parse_mode=ParseMode.HTML, 
+        reply_markup=get_panel_markup(),
+        message_effect_id=random.choice(secret.MESSAGE_EFFECTS)
+    )
 
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

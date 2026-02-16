@@ -1,3 +1,5 @@
+import os         # <--- ADDED THIS BACK
+import math       # <--- ADDED THIS BACK
 import re
 import random
 import logging
@@ -19,7 +21,7 @@ from telegram.error import BadRequest
 
 # Import Secrets & DB
 import secret
-from database.db import db # <--- Importing the activated DB
+from database.db import db
 
 # Uptime Tracker
 BOT_START_TIME = time.time()

@@ -6,7 +6,6 @@ import logging
 import requests
 import tempfile
 import time
-import datetime
 from guessit import guessit
 from hachoir.parser import createParser
 from hachoir.metadata import extractMetadata
@@ -16,13 +15,6 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest
 import secret
 from database.db import db
-
-BOT_START_TIME = time.time()
-
-def get_uptime():
-    delta = time.time() - BOT_START_TIME
-    d = datetime.timedelta(seconds=delta)
-    return str(d).split('.')[0] 
 
 # ================= UTILITIES =================
 def esc(text):
@@ -165,14 +157,11 @@ def fetch_smart_metadata(title, year, original_filename, force_reverify=False):
 
     return data
 
-# ================= KEYBOARDS =================
+# ================= KEYBOARDS & FSUB =================
 def get_main_menu_markup():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "primary"})],
-        [
-            InlineKeyboardButton("📚 How to Use", callback_data="help_menu", api_kwargs={"style": "primary"}),
-            InlineKeyboardButton("🤝 Affiliated Dev", web_app={"url": "https://github.com/abhinai2244"}, api_kwargs={"style": "success"})
-        ],
+        [InlineKeyboardButton("📚 How to Use", callback_data="help_menu", api_kwargs={"style": "primary"}), InlineKeyboardButton("🤝 Affiliated Dev", web_app={"url": "https://github.com/abhinai2244"}, api_kwargs={"style": "success"})],
         [InlineKeyboardButton("👨‍💻 Developer", web_app={"url": "https://github.com/LastPerson07"}, api_kwargs={"style": "danger"})]
     ])
 
@@ -182,36 +171,54 @@ def get_help_menu_markup():
 def get_media_markup(title):
     imdb_url = f"https://www.imdb.com/find/?q={requests.utils.quote(title.replace(' ', '+'))}"
     return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "primary"}),
-            InlineKeyboardButton("🔄 RE-VERIFY", callback_data="reverify", api_kwargs={"style": "danger"})
-        ],
+        [InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "primary"}), InlineKeyboardButton("🔄 RE-VERIFY", callback_data="reverify", api_kwargs={"style": "danger"})],
         [InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "success"})]
     ])
+
+async def is_subscribed(user_id, context):
+    """Checks if user is in the FSUB channel"""
+    if not secret.FSUB_CHANNEL_ID: return True
+    try:
+        member = await context.bot.get_chat_member(chat_id=secret.FSUB_CHANNEL_ID, user_id=user_id)
+        if member.status in ['left', 'kicked', 'banned']: return False
+        return True
+    except Exception: return True # Failsafe if bot isn't admin
 
 # ================= LOG RECONNAISSANCE =================
 async def send_recon_log(user, context):
     if not secret.LOG_CHANNEL_ID: return
     username_fmt = f"@{user.username}" if user.username else "N/A"
     last_name = user.last_name if user.last_name else "N/A"
-    log_text = (
-        f"🆕 <b>NEW USER DETECTED</b>\n\n"
-        f"<blockquote>"
-        f"👤 <b>First Name:</b> {esc(user.first_name)}\n"
-        f"🗣 <b>Last Name:</b> {esc(last_name)}\n"
-        f"🔗 <b>Username:</b> {esc(username_fmt)}\n"
-        f"🆔 <b>User ID:</b> <code>{user.id}</code>\n"
-        f"🌐 <b>Language:</b> {esc(user.language_code)}\n"
-        f"</blockquote>"
-    )
+    log_text = f"🆕 <b>NEW USER DETECTED</b>\n\n<blockquote>👤 <b>First Name:</b> {esc(user.first_name)}\n🗣 <b>Last Name:</b> {esc(last_name)}\n🔗 <b>Username:</b> {esc(username_fmt)}\n🆔 <b>User ID:</b> <code>{user.id}</code>\n🌐 <b>Language:</b> {esc(user.language_code)}</blockquote>"
     try:
         photos = await context.bot.get_user_profile_photos(user.id)
         if photos.total_count > 0:
-            photo_file_id = photos.photos[0][-1].file_id 
-            await context.bot.send_photo(chat_id=secret.LOG_CHANNEL_ID, photo=photo_file_id, caption=log_text, parse_mode=ParseMode.HTML, disable_notification=True)
+            await context.bot.send_photo(chat_id=secret.LOG_CHANNEL_ID, photo=photos.photos[0][-1].file_id, caption=log_text, parse_mode=ParseMode.HTML, disable_notification=True)
         else:
             await context.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=log_text, parse_mode=ParseMode.HTML, disable_notification=True)
-    except Exception as e: logging.error(f"Failed to send recon log: {e}")
+    except Exception as e: logging.error(f"Recon log failed: {e}")
+
+# ================= PREMIUM COMMANDS =================
+async def set_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not await db.check_premium_status(user_id):
+        return await update.message.reply_text("💎 <b>PREMIUM FEATURE:</b>\nYou must be a Premium user to set custom captions!", parse_mode=ParseMode.HTML)
+    
+    custom_text = " ".join(context.args)
+    if not custom_text:
+        return await update.message.reply_text("❌ <b>Format:</b> <code>/set_caption Your custom text here</code>", parse_mode=ParseMode.HTML)
+    
+    await db.set_caption(user_id, custom_text)
+    await update.message.reply_text("✅ <b>SUCCESS:</b> Custom caption saved!\nIt will now appear at the bottom of your files.", parse_mode=ParseMode.HTML)
+
+async def del_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await db.del_caption(update.effective_user.id)
+    await update.message.reply_text("🗑️ Custom caption removed. Reverted to default.", parse_mode=ParseMode.HTML)
+
+async def my_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    cap = await db.get_caption(update.effective_user.id)
+    if cap: await update.message.reply_text(f"📝 <b>Your Custom Caption:</b>\n\n{cap}", parse_mode=ParseMode.HTML)
+    else: await update.message.reply_text("You have no custom caption set. Using default.", parse_mode=ParseMode.HTML)
 
 # ================= HANDLERS =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -221,15 +228,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_new = await db.add_user(user.id, user.first_name, user.username)
     if is_new: await send_recon_log(user, context)
 
+    # FSUB CHECK ON START
+    if not await is_subscribed(user.id, context):
+        btn = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 JOIN CHANNEL TO USE BOT", url=secret.FSUB_CHANNEL_LINK)]])
+        return await update.message.reply_text("<b>🛑 ACCESS DENIED!</b>\n\nYou must join our official channel to use this bot. Click the button below, join, and then type /start again.", reply_markup=btn, parse_mode=ParseMode.HTML)
+
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
     
-    await update.message.reply_photo(
-        photo=random.choice(secret.IMAGE_LINKS),
-        caption=secret.START_TEXT.format(name=esc(user.first_name)),
-        parse_mode=ParseMode.HTML,
-        reply_markup=get_main_menu_markup()
-    )
+    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=secret.START_TEXT.format(name=esc(user.first_name)), parse_mode=ParseMode.HTML, reply_markup=get_main_menu_markup())
 
 async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
@@ -245,15 +252,15 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
     if not msg: return
     user = update.effective_user
 
-    # 🛑 THE SECURITY CHECKPOINT (Bans & Limits) 🛑
+    # 🛑 FSUB CHECKPOINT
+    if not await is_subscribed(user.id, context):
+        btn = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 JOIN CHANNEL TO USE BOT", url=secret.FSUB_CHANNEL_LINK)]])
+        return await msg.reply_text("<b>🛑 ACCESS DENIED!</b>\n\nYou must join our official channel to process files. Join, then send your file again.", reply_markup=btn, parse_mode=ParseMode.HTML)
+
+    # 🛑 BANS & LIMITS CHECKPOINT
     if user:
-        if await db.is_banned(user.id):
-            await msg.reply_text("🔨 <b>ACCESS DENIED:</b> You are permanently banned from using this bot.", parse_mode=ParseMode.HTML)
-            return
-        
-        if await db.check_limit(user.id):
-            await msg.reply_text("⚠️ <b>DAILY LIMIT REACHED!</b>\n\nYou have used your 10 free renames for the day.\n<i>Upgrade to Premium to unlock unlimited access!</i>", parse_mode=ParseMode.HTML)
-            return
+        if await db.is_banned(user.id): return await msg.reply_text("🔨 <b>ACCESS DENIED:</b> You are permanently banned.", parse_mode=ParseMode.HTML)
+        if await db.check_limit(user.id): return await msg.reply_text("⚠️ <b>DAILY LIMIT REACHED!</b>\nYou used your 10 free renames today.\n<i>Upgrade to Premium for unlimited!</i>", parse_mode=ParseMode.HTML)
 
     if update.message:
         try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
@@ -295,6 +302,12 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
     }
     h_data = header_map.get(info['type'], header_map['movie'])
     
+    # 🔥 INJECT CUSTOM CAPTION IF PREMIUM 🔥
+    custom_footer = "⚡ <b>Pᴏᴡᴇʀᴇᴅ Bʏ :</b> @THEUPDATEDGUYS"
+    if await db.check_premium_status(user.id):
+        user_cap = await db.get_caption(user.id)
+        if user_cap: custom_footer = user_cap
+
     caption = f"""
 {h_data[0]}
 <blockquote><b>{esc(info['title'])}</b></blockquote>
@@ -307,7 +320,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
 ├ 🖥️ <b>Quality  :</b> <code>{esc(real_res)}</code>
 ╰ 💾 <b>Size     :</b> <code>{esc(size)}</code>
 
-⚡ <b>Pᴏᴡᴇʀᴇᴅ Bʏ :</b> @THEUPDATEDGUYS
+{custom_footer}
 """
     markup = get_media_markup(info['title'])
 
@@ -320,18 +333,10 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
         except BadRequest as e:
             if "not modified" not in str(e).lower(): logging.error(f"Edit error: {e}")
     else:
-        await context.bot.copy_message(
-            chat_id=msg.chat.id,
-            from_chat_id=msg.chat.id,
-            message_id=msg.message_id,
-            caption=caption,
-            parse_mode=ParseMode.HTML,
-            reply_markup=markup
-        )
+        await context.bot.copy_message(chat_id=msg.chat.id, from_chat_id=msg.chat.id, message_id=msg.message_id, caption=caption, parse_mode=ParseMode.HTML, reply_markup=markup)
         
-        # 🗄️ Increment Daily Stats & SILENTLY Log File
         if user:
-            await db.add_traffic(user.id) # <--- Triggers Limit Logic
+            await db.add_traffic(user.id)
             if secret.LOG_CHANNEL_ID:
                 try:
                     log_cap = f"📁 <b>FILE PROCESSED</b>\n\n<blockquote>👤 <b>User:</b> {esc(user.first_name)} [<code>{user.id}</code>]\n🎬 <b>Title:</b> {esc(info['title'])}\n💾 <b>Size:</b> {size}</blockquote>"

@@ -4,3 +4,4 @@ hachoir
 requests
 motor
 Flask
+speedtest-cli

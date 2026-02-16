@@ -1,4 +1,7 @@
 import logging
+import random
+import datetime
+from telegram import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 # Import the Keep Alive Server
@@ -14,12 +17,43 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logging.getLogger("httpx").setLevel(logging.WARNING) 
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
+async def startup_log(app):
+    """Fires exactly when the bot boots up and logs to the channel."""
+    if secret.LOG_CHANNEL_ID:
+        try:
+            msg = (
+                f"🚀 <b>BOT ENGINE INITIATED</b>\n\n"
+                f"<blockquote>"
+                f"🤖 <b>Bot Name:</b> @{app.bot.username}\n"
+                f"🌍 <b>Hosted On:</b> Render.com\n"
+                f"🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n"
+                f"⚙️ <b>Workers:</b> {secret.WORKERS} Parallel Threads Active\n"
+                f"🗄️ <b>Database:</b> MongoDB Synchronized"
+                f"</blockquote>"
+            )
+            await app.bot.send_message(
+                chat_id=secret.LOG_CHANNEL_ID, 
+                text=msg, 
+                parse_mode=ParseMode.HTML,
+                message_effect_id=random.choice(secret.MESSAGE_EFFECTS)
+            )
+        except Exception as e:
+            logging.error(f"Startup log failed: {e}")
+
 if __name__ == '__main__':
-    print("🚀 TITANIUM 28.0 (FSUB, BROADCAST, PREMIUM CAPTIONS) IS ONLINE.")
+    print("🚀 TITANIUM 29.0 (EFFECTS & PARALLEL WORKERS) IS ONLINE.")
     
     keep_alive()
     
-    app = ApplicationBuilder().token(secret.BOT_TOKEN).build()
+    # 🔥 MASSIVE CONCURRENCY & PARALLEL WORKING BOOST
+    app = (
+        ApplicationBuilder()
+        .token(secret.BOT_TOKEN)
+        .connection_pool_size(secret.WORKERS) # Allow multiple concurrent connections
+        .concurrent_updates(True)             # Process multiple users parallelly 
+        .post_init(startup_log)               # Send Startup log
+        .build()
+    )
     
     # Core User Commands
     app.add_handler(CommandHandler("start", script.start))
@@ -34,7 +68,7 @@ if __name__ == '__main__':
     # 👑 ADMIN COMMANDS
     app.add_handler(CommandHandler("panel", admin.panel))
     app.add_handler(CommandHandler("stats", admin.stats_cmd)) 
-    app.add_handler(CommandHandler("broadcast", admin.broadcast)) # <--- NEW MASS BROADCAST
+    app.add_handler(CommandHandler("broadcast", admin.broadcast)) 
     app.add_handler(CommandHandler("addpremium", admin.add_premium))
     app.add_handler(CommandHandler("removepremium", admin.remove_premium))
     app.add_handler(CommandHandler("ban", admin.ban))

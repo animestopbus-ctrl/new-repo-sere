@@ -6,6 +6,7 @@ import logging
 import requests
 import tempfile
 import time
+import asyncio
 from guessit import guessit
 from hachoir.parser import createParser
 from hachoir.metadata import extractMetadata
@@ -15,7 +16,7 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest
 import secret
 from database.db import db
-import admin # Needed to fetch uptime for /status
+import admin
 
 # ================= UTILITIES =================
 def esc(text):
@@ -160,7 +161,9 @@ def get_main_menu_markup():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("🔵 How to Use", callback_data="help_menu", api_kwargs={"style": "primary"}), InlineKeyboardButton("🟢 Settings", callback_data="settings_menu", api_kwargs={"style": "success"})],
-        [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/LastPerson07", api_kwargs={"style": "danger"}), InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "primary"})]
+        # 🔥 MINI APP URLs INTEGRATED PERFECTLY
+        [InlineKeyboardButton("👨‍💻 Developer", web_app={"url": "https://github.com/LastPerson07"}, api_kwargs={"style": "danger"}), InlineKeyboardButton("🤝 Affiliated Dev", web_app={"url": "https://github.com/abhinai2244"}, api_kwargs={"style": "success"})],
+        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "secondary"})]
     ])
 
 def get_help_menu_markup():
@@ -181,6 +184,12 @@ async def is_subscribed(user_id, context):
         return True
     except Exception: return True 
 
+# 🔥 FSUB PHOTO BLOCKER 🔥
+async def send_fsub_blocker(msg):
+    btn = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 JOIN THE CHANNEL TO USE BOT", url=secret.FSUB_CHANNEL_LINK)]])
+    fsub_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<b>🛑 ACCESS DENIED!</b>\n\n<blockquote>You must join our official channel to use this bot. Click the button below to join, and then try again.</blockquote>"
+    await msg.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=fsub_text, reply_markup=btn, parse_mode=ParseMode.HTML)
+
 async def send_recon_log(user, context):
     if not secret.LOG_CHANNEL_ID: return
     username_fmt = f"@{user.username}" if user.username else "N/A"
@@ -194,63 +203,62 @@ async def send_recon_log(user, context):
 
 # ================= UTILITY & DIAGNOSTIC COMMANDS =================
 async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("⚡"), is_big=True)
-    except: pass
     start_t = time.time()
     msg = await update.message.reply_text("📶 Pinging Server...", parse_mode=ParseMode.HTML)
     end_t = time.time()
-    await msg.edit_text(f"🏓 <b>Pong!</b>\nLatency: <code>{round((end_t - start_t) * 1000)}ms</code>", parse_mode=ParseMode.HTML)
+    await msg.edit_text(f"🏓 <b>Pong!</b>\n<blockquote>Latency: <code>{round((end_t - start_t) * 1000)}ms</code></blockquote>", parse_mode=ParseMode.HTML)
 
 async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("🆔"), is_big=True)
-    except: pass
-    await update.message.reply_text(f"👤 <b>Your User ID:</b> <code>{update.effective_user.id}</code>\n💬 <b>Chat ID:</b> <code>{update.effective_chat.id}</code>", parse_mode=ParseMode.HTML)
+    await update.message.reply_text(f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>👤 <b>Your User ID:</b> <code>{update.effective_user.id}</code>\n💬 <b>Chat ID:</b> <code>{update.effective_chat.id}</code></blockquote>", parse_mode=ParseMode.HTML)
 
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("🟢"), is_big=True)
-    except: pass
-    await update.message.reply_text(f"🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}", parse_mode=ParseMode.HTML)
+    await update.message.reply_text(f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}</blockquote>", parse_mode=ParseMode.HTML)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     user = update.effective_user
     
-    # 🛑 MAINTENANCE CHECK
     if await db.get_maintenance() and user.id != secret.ADMIN_ID:
-        return await update.message.reply_text("🚧 <b>MAINTENANCE MODE</b>\n\nThe bot is currently undergoing upgrades. Please try again later.", parse_mode=ParseMode.HTML)
+        return await update.message.reply_text("🚧 <b>MAINTENANCE MODE</b>\n\n<blockquote>The bot is currently undergoing upgrades. Please try again later.</blockquote>", parse_mode=ParseMode.HTML)
 
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
-    except: pass
     is_new = await db.add_user(user.id, user.first_name, user.username)
     if is_new: await send_recon_log(user, context)
+    
     if not await is_subscribed(user.id, context):
-        btn = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 JOIN CHANNEL TO USE BOT", url=secret.FSUB_CHANNEL_LINK)]])
-        return await update.message.reply_text("<b>🛑 ACCESS DENIED!</b>\n\nYou must join our official channel to use this bot.", reply_markup=btn, parse_mode=ParseMode.HTML)
-    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=secret.START_TEXT.format(name=esc(user.first_name)), parse_mode=ParseMode.HTML, reply_markup=get_main_menu_markup())
+        return await send_fsub_blocker(update.message)
+    
+    # 🔥 Smooth Entry & Effects
+    try:
+        sticker_msg = await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
+        await asyncio.sleep(1.2)
+        await sticker_msg.delete()
+    except: pass
+
+    await update.message.reply_photo(
+        photo=random.choice(secret.IMAGE_LINKS), 
+        caption=secret.START_TEXT.format(name=esc(user.first_name)), 
+        parse_mode=ParseMode.HTML, 
+        reply_markup=get_main_menu_markup(),
+        message_effect_id=random.choice(secret.MESSAGE_EFFECTS)
+    )
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("📚"), is_big=True)
-    except: pass
-    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML, reply_markup=get_help_menu_markup())
+    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML, reply_markup=get_help_menu_markup(), message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("ℹ️"), is_big=True)
-    except: pass
-    info_text = "🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 33.0 Pro\n👨‍💻 <b>Developer:</b> @LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
+    info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 34.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
     markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})]])
     await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=info_text, parse_mode=ParseMode.HTML, reply_markup=markup)
 
 async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("⚙️"), is_big=True)
-    except: pass
     user_id = update.effective_user.id
     user_data = await db.col.find_one({'id': int(user_id)})
     if not user_data: return await update.message.reply_text("❌ Please send /start first to register your account.")
     is_prem = user_data.get('is_premium', False)
     status = "💎 PREMIUM VIP" if is_prem else "🆓 FREE TIER"
-    text = f"⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0)}/10 Files Processed\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0)} Files\n📝 <b>Custom Caption:</b> {esc(user_data.get('caption', 'None (Default)'))}</blockquote>\n\n<i>Use /set_caption to update your Premium caption.</i>"
+    text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0)}/10 Files Processed\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0)} Files\n📝 <b>Custom Caption:</b> {esc(user_data.get('caption', 'None (Default)'))}</blockquote>\n\n<i>Use /set_caption to update your Premium caption.</i>"
     markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})]])
-    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=text, parse_mode=ParseMode.HTML, reply_markup=markup)
+    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=text, parse_mode=ParseMode.HTML, reply_markup=markup, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def feedback_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -259,17 +267,17 @@ async def feedback_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_msg = f"📬 <b>NEW USER FEEDBACK</b>\n\n<blockquote>👤 <b>From:</b> {esc(user.first_name)} [<code>{user.id}</code>]\n💬 <b>Message:</b> {esc(feedback_text)}</blockquote>"
     try:
         await context.bot.send_message(chat_id=secret.ADMIN_ID, text=admin_msg, parse_mode=ParseMode.HTML)
-        await update.message.reply_text("✅ <b>Feedback Sent Successfully!</b>\nThank you for helping us improve the engine.", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("✅ <b>Feedback Sent Successfully!</b>\n<blockquote>Thank you for helping us improve the engine.</blockquote>", parse_mode=ParseMode.HTML)
     except Exception: await update.message.reply_text("❌ Failed to send feedback to the developer.", parse_mode=ParseMode.HTML)
 
 # ================= PREMIUM COMMANDS =================
 async def set_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if not await db.check_premium_status(user_id): return await update.message.reply_text("💎 <b>PREMIUM FEATURE:</b>\nYou must be a Premium user to set custom captions!", parse_mode=ParseMode.HTML)
+    if not await db.check_premium_status(user_id): return await update.message.reply_text("💎 <b>PREMIUM FEATURE:</b>\n<blockquote>You must be a Premium user to set custom captions!</blockquote>", parse_mode=ParseMode.HTML)
     custom_text = " ".join(context.args)
     if not custom_text: return await update.message.reply_text("❌ <b>Format:</b> <code>/set_caption Your custom text here</code>", parse_mode=ParseMode.HTML)
     await db.set_caption(user_id, custom_text)
-    await update.message.reply_text("✅ <b>SUCCESS:</b> Custom caption saved!\nIt will now appear at the bottom of your files.", parse_mode=ParseMode.HTML)
+    await update.message.reply_text("✅ <b>SUCCESS:</b> Custom caption saved!\n<blockquote>It will now appear at the bottom of your files.</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def del_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await db.del_caption(update.effective_user.id)
@@ -277,16 +285,8 @@ async def del_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def my_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cap = await db.get_caption(update.effective_user.id)
-    if cap: await update.message.reply_text(f"📝 <b>Your Custom Caption:</b>\n\n{cap}", parse_mode=ParseMode.HTML)
+    if cap: await update.message.reply_text(f"📝 <b>Your Custom Caption:</b>\n\n<blockquote>{cap}</blockquote>", parse_mode=ParseMode.HTML)
     else: await update.message.reply_text("You have no custom caption set. Using default.", parse_mode=ParseMode.HTML)
-
-async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message: return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("😘"), is_big=True)
-    except: pass
-    try: await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
-    except: pass
-    await update.message.reply_text("<b>Yes darling, I am alive. Don't worry! 😘</b>", parse_mode=ParseMode.HTML)
 
 # ================= MEDIA ENGINE =================
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force_reverify=False):
@@ -295,28 +295,25 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
     if not msg: return
     user = update.effective_user
 
-    # 🛑 MAINTENANCE CHECK
     if await db.get_maintenance() and user.id != secret.ADMIN_ID:
-        return await msg.reply_text("🚧 <b>MAINTENANCE MODE</b>\n\nThe bot is currently undergoing upgrades. Please try again later.", parse_mode=ParseMode.HTML)
-
-    if update.message:
-        try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
-        except: pass
+        return await msg.reply_text("🚧 <b>MAINTENANCE MODE</b>\n\n<blockquote>The bot is currently undergoing upgrades. Please try again later.</blockquote>", parse_mode=ParseMode.HTML)
 
     if not await is_subscribed(user.id, context):
-        btn = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 JOIN CHANNEL TO USE BOT", url=secret.FSUB_CHANNEL_LINK)]])
-        return await msg.reply_text("<b>🛑 ACCESS DENIED!</b>\n\nYou must join our official channel to process files.", reply_markup=btn, parse_mode=ParseMode.HTML)
+        return await send_fsub_blocker(msg)
 
     if user:
         if await db.is_banned(user.id): return await msg.reply_text("🔨 <b>ACCESS DENIED:</b> You are permanently banned.", parse_mode=ParseMode.HTML)
-        if await db.check_limit(user.id): return await msg.reply_text("⚠️ <b>DAILY LIMIT REACHED!</b>\nYou used your 10 free renames today.\n<i>Upgrade to Premium for unlimited!</i>", parse_mode=ParseMode.HTML)
+        if await db.check_limit(user.id): return await msg.reply_text("⚠️ <b>DAILY LIMIT REACHED!</b>\n<blockquote>You used your 10 free renames today.\n<i>Upgrade to Premium for unlimited!</i></blockquote>", parse_mode=ParseMode.HTML)
 
     media = msg.document or msg.video
     if not media: return
 
+    # 🔥 Smooth Processing Animation
     loading_sticker = None
     if not query:
-        try: loading_sticker = await msg.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
+        try:
+            loading_sticker = await msg.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
+            await asyncio.sleep(1.2)
         except: pass
 
     original_name = getattr(media, 'file_name', 'Unknown_File.mp4')
@@ -368,6 +365,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
 """
     markup = get_media_markup(info['title'])
 
+    # Delete the loading sticker perfectly before sending the file
     if loading_sticker:
         try: await loading_sticker.delete()
         except: pass
@@ -398,7 +396,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
         except BadRequest: pass
     elif data == "info_menu":
-        info_text = "🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 33.0 Pro\n👨‍💻 <b>Developer:</b> @LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
+        info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 34.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=info_text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
@@ -407,7 +405,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data = await db.col.find_one({'id': int(user_id)})
         is_prem = user_data.get('is_premium', False) if user_data else False
         status = "💎 PREMIUM VIP" if is_prem else "🆓 FREE TIER"
-        text = f"⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0) if user_data else 0}/10 Files\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0) if user_data else 0} Files\n📝 <b>Caption:</b> {esc(user_data.get('caption', 'None (Default)') if user_data else 'None')}</blockquote>"
+        text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0) if user_data else 0}/10 Files\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0) if user_data else 0} Files\n📝 <b>Caption:</b> {esc(user_data.get('caption', 'None (Default)') if user_data else 'None')}</blockquote>"
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass

@@ -42,16 +42,9 @@ LOADING_STICKERS = [
 ]
 
 IMAGE_LINKS = [
-    "https://i.postimg.cc/26ZBtBZr/13.png", "https://i.postimg.cc/PJn8nrWZ/14.png", 
-    "https://i.postimg.cc/1Xw1wxDw/photo-2025-10-19-07-30-34.jpg", "https://i.postimg.cc/QtXVtB8K/8.png", 
-    "https://i.postimg.cc/y8j8G1XV/9.png", "https://i.postimg.cc/zXjH4NVb/17.png", 
-    "https://i.postimg.cc/sggGrLhn/18.png", "https://i.postimg.cc/dtW30QpL/6.png", 
-    "https://i.postimg.cc/8C15CQ5y/1.png", "https://i.postimg.cc/gcNtrv0m/2.png", 
-    "https://i.postimg.cc/cHD71BBz/3.png", "https://i.postimg.cc/F1XYhY8q/4.png", 
-    "https://i.postimg.cc/1tNwGVxC/5.png", "https://i.postimg.cc/139dvs3c/7.png", 
-    "https://i.postimg.cc/zDF6KyJX/10.png", "https://i.postimg.cc/fyycVqzd/11.png", 
-    "https://i.postimg.cc/cC7txyhz/15.png", "https://i.postimg.cc/kX9tjGXP/16.png", 
-    "https://i.postimg.cc/y8pgYTh7/19.png"
+    "https://images.unsplash.com/photo-1519638399535-1b036603ac77?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YW5pbWV8ZW58MHx8MHx8fDA%3D", "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8YW5pbWV8ZW58MHx8MHx8fDA%3D", 
+    "https://images.unsplash.com/photo-1640903581708-8d491706515b?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8YW5pbWV8ZW58MHx8MHx8fDA%3D", "https://plus.unsplash.com/premium_photo-1674718013659-6930c469e641?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fGFuaW1lfGVufDB8fDB8fHww", 
+    "https://images.unsplash.com/photo-1601850494422-3cf14624b0b3?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fGFuaW1lfGVufDB8fDB8fHww", 
 ]
 
 # ================= API KEYS & MAPS =================
@@ -83,3 +76,4 @@ HELP_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
 4️⃣ I generate a beautiful, categorized layout and send the file back to you with its original HD thumbnail perfectly intact!
 
 <i>💡 <b>Pro Tip:</b> If the AI catches the wrong movie, tap the "🔄 RE-VERIFY" button!</i>"""
+

@@ -158,21 +158,22 @@ def fetch_smart_metadata(title, year, original_filename, force_reverify=False):
 
 # ================= KEYBOARDS & FSUB =================
 def get_main_menu_markup():
+    # Emojis safely provide colored visual cues without crashing WebApp buttons
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "primary"})],
-        [InlineKeyboardButton("🔵 How to Use", callback_data="help_menu", api_kwargs={"style": "primary"}), InlineKeyboardButton("🟢 Settings", callback_data="settings_menu", api_kwargs={"style": "success"})],
-        [InlineKeyboardButton("👨‍💻 Developer", web_app={"url": "https://github.com/LastPerson07"}, api_kwargs={"style": "danger"}), InlineKeyboardButton("🤝 Affiliated Dev", web_app={"url": "https://github.com/abhinai2244"}, api_kwargs={"style": "success"})],
-        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "secondary"})]
+        [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS")],
+        [InlineKeyboardButton("🔵 How to Use", callback_data="help_menu"), InlineKeyboardButton("🟢 Settings", callback_data="settings_menu")],
+        [InlineKeyboardButton("👨‍💻 Developer", web_app={"url": "https://github.com/LastPerson07"}), InlineKeyboardButton("🤝 Affiliated Dev", web_app={"url": "https://github.com/abhinai2244"})],
+        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu")]
     ])
 
 def get_help_menu_markup():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu", api_kwargs={"style": "danger"})]])
+    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu")]])
 
 def get_media_markup(title):
     imdb_url = f"https://www.imdb.com/find/?q={requests.utils.quote(title.replace(' ', '+'))}"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "primary"}), InlineKeyboardButton("🔄 RE-VERIFY", callback_data="reverify", api_kwargs={"style": "danger"})],
-        [InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "success"})]
+        [InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url), InlineKeyboardButton("🔄 RE-VERIFY", callback_data="reverify")],
+        [InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS")]
     ])
 
 async def is_subscribed(user_id, context):
@@ -204,15 +205,15 @@ async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_t = time.time()
     msg = await update.message.reply_text("📶 Pinging Server...", parse_mode=ParseMode.HTML)
     end_t = time.time()
+    # 🔥 TEXT MSG: Supports message_effect_id perfectly
     await msg.edit_text(f"🏓 <b>Pong!</b>\n<blockquote>Latency: <code>{round((end_t - start_t) * 1000)}ms</code></blockquote>", parse_mode=ParseMode.HTML)
 
 async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>👤 <b>Your User ID:</b> <code>{update.effective_user.id}</code>\n💬 <b>Chat ID:</b> <code>{update.effective_chat.id}</code></blockquote>", parse_mode=ParseMode.HTML)
 
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}</blockquote>", parse_mode=ParseMode.HTML)
+    await update.message.reply_text(f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
-# 🔥 ALIVE COMMAND RESTORED 🔥
 async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji("😘"), is_big=True)
@@ -240,21 +241,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await sticker_msg.delete()
     except: pass
 
-    await update.message.reply_photo(
+    # 🔥 PHOTO MSG: Must use set_reaction instead of message_effect_id
+    sent_msg = await update.message.reply_photo(
         photo=random.choice(secret.IMAGE_LINKS), 
         caption=secret.START_TEXT.format(name=esc(user.first_name)), 
         parse_mode=ParseMode.HTML, 
-        reply_markup=get_main_menu_markup(),
-        message_effect_id=random.choice(secret.MESSAGE_EFFECTS)
+        reply_markup=get_main_menu_markup()
     )
+    try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    except: pass
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML, reply_markup=get_help_menu_markup(), message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    sent_msg = await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML, reply_markup=get_help_menu_markup())
+    try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("📚"), is_big=True)
+    except: pass
 
 async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 34.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
-    markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})]])
-    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=info_text, parse_mode=ParseMode.HTML, reply_markup=markup)
+    info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 35.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07")]])
+    sent_msg = await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=info_text, parse_mode=ParseMode.HTML, reply_markup=markup)
+    try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("ℹ️"), is_big=True)
+    except: pass
 
 async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -263,8 +270,10 @@ async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_prem = user_data.get('is_premium', False)
     status = "💎 PREMIUM VIP" if is_prem else "🆓 FREE TIER"
     text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0)}/10 Files Processed\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0)} Files\n📝 <b>Custom Caption:</b> {esc(user_data.get('caption', 'None (Default)'))}</blockquote>\n\n<i>Use /set_caption to update your Premium caption.</i>"
-    markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})]])
-    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=text, parse_mode=ParseMode.HTML, reply_markup=markup, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07")]])
+    sent_msg = await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=text, parse_mode=ParseMode.HTML, reply_markup=markup)
+    try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("⚙️"), is_big=True)
+    except: pass
 
 async def feedback_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -273,7 +282,7 @@ async def feedback_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_msg = f"📬 <b>NEW USER FEEDBACK</b>\n\n<blockquote>👤 <b>From:</b> {esc(user.first_name)} [<code>{user.id}</code>]\n💬 <b>Message:</b> {esc(feedback_text)}</blockquote>"
     try:
         await context.bot.send_message(chat_id=secret.ADMIN_ID, text=admin_msg, parse_mode=ParseMode.HTML)
-        await update.message.reply_text("✅ <b>Feedback Sent Successfully!</b>\n<blockquote>Thank you for helping us improve the engine.</blockquote>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("✅ <b>Feedback Sent Successfully!</b>\n<blockquote>Thank you for helping us improve the engine.</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     except Exception: await update.message.reply_text("❌ Failed to send feedback to the developer.", parse_mode=ParseMode.HTML)
 
 # ================= PREMIUM COMMANDS =================
@@ -400,8 +409,8 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
         except BadRequest: pass
     elif data == "info_menu":
-        info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 34.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
-        markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
+        info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 35.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07")], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu")]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=info_text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
     elif data == "settings_menu":
@@ -410,7 +419,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_prem = user_data.get('is_premium', False) if user_data else False
         status = "💎 PREMIUM VIP" if is_prem else "🆓 FREE TIER"
         text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0) if user_data else 0}/10 Files\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0) if user_data else 0} Files\n📝 <b>Caption:</b> {esc(user_data.get('caption', 'None (Default)') if user_data else 'None')}</blockquote>"
-        markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07")], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu")]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
     elif data == "main_menu":

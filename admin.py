@@ -1,4 +1,5 @@
 import random
+import time
 import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
@@ -6,11 +7,38 @@ from telegram.constants import ParseMode
 import secret
 from database.db import db
 
+# Uptime Tracker for Admin Stats
+BOT_START_TIME = time.time()
+
+def get_uptime():
+    delta = time.time() - BOT_START_TIME
+    d = datetime.timedelta(seconds=delta)
+    return str(d).split('.')[0]
+
 # ================= ADMIN SECURITY =================
 def is_admin(user_id):
     return user_id == secret.ADMIN_ID
 
 # ================= ADMIN TEXT COMMANDS =================
+async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """The Quick Text Stats Command"""
+    if not is_admin(update.effective_user.id): return
+    
+    total_users = await db.total_users_count()
+    db_storage = await db.get_db_stats()
+    uptime = get_uptime()
+    
+    stats_text = (
+        f"📊 <b>SYSTEM TELEMETRY</b>\n\n"
+        f"<blockquote>"
+        f"🤖 <b>Bot Status:</b> 🟢 <i>Operational</i>\n"
+        f"⏱ <b>Uptime:</b> <code>{uptime}</code>\n"
+        f"👥 <b>Total Users:</b> <code>{total_users}</code>\n"
+        f"🗄️ <b>DB Storage:</b> <code>{db_storage}</code>"
+        f"</blockquote>"
+    )
+    await update.message.reply_text(stats_text, parse_mode=ParseMode.HTML)
+
 async def add_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
     try:
@@ -63,11 +91,9 @@ def get_panel_markup():
 async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
     
-    # 1. Send Sticker
     try: await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
     except: pass
     
-    # 2. Send Graphical UI
     caption = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\nSelect an option below to manage the engine."
     await update.message.reply_photo(
         photo=random.choice(secret.IMAGE_LINKS),

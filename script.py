@@ -1,5 +1,5 @@
-import os         # <--- ADDED THIS BACK
-import math       # <--- ADDED THIS BACK
+import os
+import math
 import re
 import random
 import logging
@@ -29,7 +29,7 @@ BOT_START_TIME = time.time()
 def get_uptime():
     delta = time.time() - BOT_START_TIME
     d = datetime.timedelta(seconds=delta)
-    return str(d).split('.')[0] # Returns HH:MM:SS
+    return str(d).split('.')[0] 
 
 # ================= UTILITIES =================
 def esc(text):
@@ -55,22 +55,30 @@ def pre_clean_filename(filename):
 
 def detect_languages(filename, guessit_langs):
     found_langs = []
+    fname_lower = filename.lower()
+    
+    # 🔥 ESUB BUG FIX: Prevents "es" from being flagged as Spanish if it's just Esub
+    is_esub = 'esub' in fname_lower or 'e-sub' in fname_lower
+    
     if guessit_langs:
         if not isinstance(guessit_langs, list): guessit_langs = [guessit_langs]
         for l in guessit_langs:
             lang_str = str(l).lower()
+            if lang_str in ['es', 'spanish'] and is_esub and 'spanish' not in fname_lower:
+                continue # Ignore false Spanish match
             found_langs.append(secret.LANG_MAP.get(lang_str, lang_str.capitalize()))
             
-    fname_lower = filename.lower()
     if 'dual' in fname_lower: found_langs.append('Dual Audio')
     if 'multi' in fname_lower: found_langs.append('Multi Audio')
     if 'hin' in fname_lower and 'Hindi' not in found_langs: found_langs.append('Hindi')
     if 'tam' in fname_lower and 'Tamil' not in found_langs: found_langs.append('Tamil')
     if 'tel' in fname_lower and 'Telugu' not in found_langs: found_langs.append('Telugu')
     if 'kor' in fname_lower and 'Korean' not in found_langs: found_langs.append('Korean')
+    if 'eng' in fname_lower and 'English' not in found_langs: found_langs.append('English')
     
-    if not found_langs: return "Unknown"
-    return " & ".join(list(dict.fromkeys(found_langs)))
+    unique_langs = list(dict.fromkeys(found_langs))
+    if not unique_langs: return "Unknown"
+    return " & ".join(unique_langs)
 
 async def get_real_resolution(file_id, context):
     try:
@@ -98,11 +106,14 @@ async def get_real_resolution(file_id, context):
     except: return None
 
 # ================= API ENGINE =================
-def fetch_smart_metadata(title, year, original_filename, re_verify=False):
+def fetch_smart_metadata(title, year, original_filename, force_reverify=False):
     tm_key = random.choice(secret.TMDB_KEYS)
     om_key = random.choice(secret.OMDB_KEYS)
     query = title.strip()
-    if re_verify: query = query.split(' ')[0]
+    
+    # 🔥 RE-VERIFY FIX: If re-verify is clicked, we aggressively shorten the query to the first word
+    if force_reverify: 
+        query = query.split(' ')[0].split('.')[0]
 
     data = {"title": title, "rating": "N/A", "genres": "Misc", "date": "N/A", "type": "movie"}
     is_anime_hint = 'anime' in original_filename.lower() or 'judas' in original_filename.lower()
@@ -149,11 +160,6 @@ def fetch_smart_metadata(title, year, original_filename, re_verify=False):
                 if res.get('rating', {}).get('average'): data['rating'] = f"{res['rating']['average']} ⭐"
                 data['date'] = res.get('premiered', data['date'])[:4] if res.get('premiered') else data['date']
                 if res.get('genres'): data['genres'] = ", ".join(res['genres'][:3])
-                tc = res.get('network', {}).get('country', {}).get('code', '')
-                if not tc and res.get('webChannel'): tc = res['webChannel'].get('country', {}).get('code', '')
-                if tc == 'KR': data['type'] = 'kdrama'
-                elif tc == 'CN': data['type'] = 'cdrama'
-                elif tc == 'JP': data['type'] = 'jdrama'
         except: pass
 
     if data['type'] == 'anime' or is_anime_hint:
@@ -198,9 +204,7 @@ def get_media_markup(title):
 
 # ================= LOG RECONNAISSANCE =================
 async def send_recon_log(user, context):
-    """Fetches DP and full data, sends silently to Log Channel"""
     if not secret.LOG_CHANNEL_ID: return
-
     username_fmt = f"@{user.username}" if user.username else "N/A"
     last_name = user.last_name if user.last_name else "N/A"
     
@@ -218,21 +222,10 @@ async def send_recon_log(user, context):
     try:
         photos = await context.bot.get_user_profile_photos(user.id)
         if photos.total_count > 0:
-            photo_file_id = photos.photos[0][-1].file_id # Get highest quality photo
-            await context.bot.send_photo(
-                chat_id=secret.LOG_CHANNEL_ID,
-                photo=photo_file_id,
-                caption=log_text,
-                parse_mode=ParseMode.HTML,
-                disable_notification=True # 🤫 SILENT ALERTS
-            )
+            photo_file_id = photos.photos[0][-1].file_id 
+            await context.bot.send_photo(chat_id=secret.LOG_CHANNEL_ID, photo=photo_file_id, caption=log_text, parse_mode=ParseMode.HTML, disable_notification=True)
         else:
-            await context.bot.send_message(
-                chat_id=secret.LOG_CHANNEL_ID,
-                text=log_text,
-                parse_mode=ParseMode.HTML,
-                disable_notification=True 
-            )
+            await context.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=log_text, parse_mode=ParseMode.HTML, disable_notification=True)
     except Exception as e:
         logging.error(f"Failed to send recon log: {e}")
 
@@ -256,9 +249,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """The Professional Admin Stats Panel"""
     if update.effective_user.id != secret.ADMIN_ID: return
-    
     total_users = await db.total_users_count()
     db_storage = await db.get_db_stats()
     uptime = get_uptime()
@@ -282,7 +273,8 @@ async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except: pass
     await update.message.reply_text("<b>Yes darling, I am alive. Don't worry! 😘</b>", parse_mode=ParseMode.HTML)
 
-async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, re_title=None):
+# 🔥 ADDED force_reverify FLAG
+async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force_reverify=False):
     query = update.callback_query
     msg = query.message if query else update.message
     if not msg: return
@@ -304,10 +296,11 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, re_ti
     clean_original = pre_clean_filename(original_name)
     parsed = guessit(clean_original)
     
-    search_q = re_title or parsed.get('title', 'Unknown')
+    search_q = parsed.get('title', 'Unknown')
     search_year = parsed.get('year') 
     
-    info = fetch_smart_metadata(search_q, search_year, original_name, re_verify=bool(re_title))
+    # Passing the correct flag to the API engine
+    info = fetch_smart_metadata(search_q, search_year, original_name, force_reverify=force_reverify)
     size = format_size(getattr(media, 'file_size', 0))
     audio = detect_languages(original_name, parsed.get('language'))
     real_res = await get_real_resolution(media.file_id, context)
@@ -329,19 +322,20 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, re_ti
     
     h_data = header_map.get(info['type'], header_map['movie'])
     
+    # 🔥 POLISHED UI DESIGN 🔥
     caption = f"""
 {h_data[0]}
 <blockquote><b>{esc(info['title'])}</b></blockquote>
 
-{h_data[1]} <b>Details:</b>
-├ {h_data[2]} <b>Rating</b>  : {esc(info['rating'])}
-├ 🎭 <b>Genres</b>  : <i>{esc(info['genres'])}</i>
-├ 📅 <b>Release</b> : <code>{esc(info['date'])}</code>
-├ 🔊 <b>Audio</b>   : <code>{esc(audio)}</code>
-├ 🖥️ <b>Quality</b> : <code>{esc(real_res)}</code>
-╰ 💾 <b>Size</b>    : <code>{esc(size)}</code>
+{h_data[1]} <b>Media Details:</b>
+├ {h_data[2]} <b>Rating   :</b> {esc(info['rating'])}
+├ 🎭 <b>Genres   :</b> <i>{esc(info['genres'])}</i>
+├ 📅 <b>Release  :</b> <code>{esc(info['date'])}</code>
+├ 🔊 <b>Audio    :</b> <code>{esc(audio)}</code>
+├ 🖥️ <b>Quality  :</b> <code>{esc(real_res)}</code>
+╰ 💾 <b>Size     :</b> <code>{esc(size)}</code>
 
-‣ <blockquote><b>@DmOwner</b></blockquote>
+⚡ <b>Pᴏᴡᴇʀᴇᴅ Bʏ :</b> @THEUPDATEDGUYS
 """
     markup = get_media_markup(info['title'])
 
@@ -383,7 +377,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, re_ti
                         message_id=msg.message_id,
                         caption=log_cap,
                         parse_mode=ParseMode.HTML,
-                        disable_notification=True # 🤫 SILENT FORWARD
+                        disable_notification=True
                     )
                 except Exception as e: pass
 
@@ -408,4 +402,5 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except BadRequest: pass
     elif data == "reverify":
         await query.answer("🔄 Deep Match Protocol...", show_alert=True)
-        await handle_media(update, context, re_title="DeepSearch")
+        # 🔥 NOW PROPERLY TRIGGERS DEEP SEARCH WITHOUT RENAMING THE FILE "DeepSearch"
+        await handle_media(update, context, force_reverify=True)

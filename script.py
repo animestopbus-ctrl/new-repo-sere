@@ -161,7 +161,6 @@ def get_main_menu_markup():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("🔵 How to Use", callback_data="help_menu", api_kwargs={"style": "primary"}), InlineKeyboardButton("🟢 Settings", callback_data="settings_menu", api_kwargs={"style": "success"})],
-        # 🔥 MINI APP URLs INTEGRATED PERFECTLY
         [InlineKeyboardButton("👨‍💻 Developer", web_app={"url": "https://github.com/LastPerson07"}, api_kwargs={"style": "danger"}), InlineKeyboardButton("🤝 Affiliated Dev", web_app={"url": "https://github.com/abhinai2244"}, api_kwargs={"style": "success"})],
         [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "secondary"})]
     ])
@@ -184,7 +183,6 @@ async def is_subscribed(user_id, context):
         return True
     except Exception: return True 
 
-# 🔥 FSUB PHOTO BLOCKER 🔥
 async def send_fsub_blocker(msg):
     btn = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 JOIN THE CHANNEL TO USE BOT", url=secret.FSUB_CHANNEL_LINK)]])
     fsub_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<b>🛑 ACCESS DENIED!</b>\n\n<blockquote>You must join our official channel to use this bot. Click the button below to join, and then try again.</blockquote>"
@@ -214,6 +212,15 @@ async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}</blockquote>", parse_mode=ParseMode.HTML)
 
+# 🔥 ALIVE COMMAND RESTORED 🔥
+async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message: return
+    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("😘"), is_big=True)
+    except: pass
+    try: await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
+    except: pass
+    await update.message.reply_text("<b>Yes darling, I am alive. Don't worry! 😘</b>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     user = update.effective_user
@@ -227,7 +234,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_subscribed(user.id, context):
         return await send_fsub_blocker(update.message)
     
-    # 🔥 Smooth Entry & Effects
     try:
         sticker_msg = await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
         await asyncio.sleep(1.2)
@@ -308,7 +314,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
     media = msg.document or msg.video
     if not media: return
 
-    # 🔥 Smooth Processing Animation
     loading_sticker = None
     if not query:
         try:
@@ -365,7 +370,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
 """
     markup = get_media_markup(info['title'])
 
-    # Delete the loading sticker perfectly before sending the file
     if loading_sticker:
         try: await loading_sticker.delete()
         except: pass

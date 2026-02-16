@@ -157,13 +157,13 @@ def fetch_smart_metadata(title, year, original_filename, force_reverify=False):
     return data
 
 # ================= KEYBOARDS & FSUB =================
-# 🔥 STYLES RESTORED ONLY TO SAFE CALLBACK BUTTONS 🔥
 def get_main_menu_markup():
+    # 🔥 FIXED: ONLY primary, success, danger allowed. Removed the invalid "secondary"!
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS")],
+        [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("📚 How to Use", callback_data="help_menu", api_kwargs={"style": "primary"}), InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu", api_kwargs={"style": "success"})],
-        [InlineKeyboardButton("👨‍💻 Developer", web_app=WebAppInfo(url="https://github.com/LastPerson07")), InlineKeyboardButton("🤝 Affiliated Dev", web_app=WebAppInfo(url="https://github.com/abhinai2244"))],
-        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "secondary"})]
+        [InlineKeyboardButton("👨‍💻 Developer", web_app=WebAppInfo(url="https://github.com/LastPerson07"), api_kwargs={"style": "danger"}), InlineKeyboardButton("🤝 Affiliated Dev", web_app=WebAppInfo(url="https://github.com/abhinai2244"), api_kwargs={"style": "primary"})],
+        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "primary"})]
     ])
 
 def get_help_menu_markup():
@@ -172,8 +172,8 @@ def get_help_menu_markup():
 def get_media_markup(title):
     imdb_url = f"https://www.imdb.com/find/?q={requests.utils.quote(title.replace(' ', '+'))}"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url), InlineKeyboardButton("🔄 RE-VERIFY", callback_data="reverify", api_kwargs={"style": "danger"})],
-        [InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS")]
+        [InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "primary"}), InlineKeyboardButton("🔄 RE-VERIFY", callback_data="reverify", api_kwargs={"style": "danger"})],
+        [InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "success"})]
     ])
 
 async def is_subscribed(user_id, context):
@@ -185,7 +185,7 @@ async def is_subscribed(user_id, context):
     except Exception: return True 
 
 async def send_fsub_blocker(msg):
-    btn = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 JOIN THE CHANNEL TO USE BOT", url=secret.FSUB_CHANNEL_LINK)]])
+    btn = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 JOIN THE CHANNEL TO USE BOT", url=secret.FSUB_CHANNEL_LINK, api_kwargs={"style": "danger"})]])
     fsub_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<b>🛑 ACCESS DENIED!</b>\n\n<blockquote>You must join our official channel to use this bot. Click the button below to join, and then try again.</blockquote>"
     sent_msg = await msg.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=fsub_text, reply_markup=btn, parse_mode=ParseMode.HTML)
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("🛑"), is_big=True)
@@ -256,7 +256,7 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 36.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
-    markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07")]])
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})]])
     sent_msg = await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=info_text, parse_mode=ParseMode.HTML, reply_markup=markup)
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("ℹ️"), is_big=True)
     except: pass
@@ -268,7 +268,7 @@ async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_prem = user_data.get('is_premium', False)
     status = "💎 PREMIUM VIP" if is_prem else "🆓 FREE TIER"
     text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0)}/10 Files Processed\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0)} Files\n📝 <b>Custom Caption:</b> {esc(user_data.get('caption', 'None (Default)'))}</blockquote>\n\n<i>Use /set_caption to update your Premium caption.</i>"
-    markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07")]])
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})]])
     sent_msg = await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption=text, parse_mode=ParseMode.HTML, reply_markup=markup)
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("⚙️"), is_big=True)
     except: pass
@@ -320,6 +320,11 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
 
     media = msg.document or msg.video
     if not media: return
+
+    # 🔥 REACTION ON USER UPLOAD
+    if update.message:
+        try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+        except: pass
 
     loading_sticker = None
     if not query:
@@ -411,7 +416,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except BadRequest: pass
     elif data == "info_menu":
         info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 36.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
-        markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07")], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=info_text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
     elif data == "settings_menu":
@@ -420,7 +425,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_prem = user_data.get('is_premium', False) if user_data else False
         status = "💎 PREMIUM VIP" if is_prem else "🆓 FREE TIER"
         text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0) if user_data else 0}/10 Files\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0) if user_data else 0} Files\n📝 <b>Caption:</b> {esc(user_data.get('caption', 'None (Default)') if user_data else 'None')}</blockquote>"
-        markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07")], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
     elif data == "main_menu":

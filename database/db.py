@@ -10,6 +10,7 @@ class Database:
         self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
         self.db = self._client[database_name]
         self.col = self.db.users
+        self.settings = self.db.settings # New Global Settings DB
         logger.info("✅ MongoDB Connected Successfully!")
 
     def new_user(self, id, name, username):
@@ -35,14 +36,12 @@ class Database:
         return False
 
     async def get_all_users(self):
-        """Yields all users for Broadcasting"""
         return self.col.find({})
 
     # ================= LIMITS & PREMIUM =================
     async def check_premium_status(self, id):
         user = await self.col.find_one({'id': int(id)})
         if not user or not user.get('is_premium'): return False
-        
         expiry = user.get('premium_expiry')
         if expiry and datetime.datetime.now() > expiry:
             await self.col.update_one({'id': int(id)}, {'$set': {'is_premium': False, 'premium_expiry': None}})
@@ -53,24 +52,19 @@ class Database:
         user = await self.col.find_one({'id': int(id)})
         if not user: return False
         if await self.check_premium_status(id): return False 
-            
         now = datetime.datetime.now()
         reset_time = user.get('limit_reset_time')
-
         if reset_time is None or now >= reset_time:
             await self.col.update_one({'id': int(id)}, {'$set': {'daily_usage': 0, 'limit_reset_time': None}})
             return False 
-
         if user.get('daily_usage', 0) >= 10: return True 
         return False
 
     async def add_traffic(self, id):
         user = await self.col.find_one({'id': int(id)})
         if not user or user.get('is_premium'): return
-
         now = datetime.datetime.now()
         reset_time = user.get('limit_reset_time')
-
         if reset_time is None or now >= reset_time:
             new_reset = now + datetime.timedelta(hours=24)
             await self.col.update_one({'id': int(id)}, {'$set': {'daily_usage': 1, 'limit_reset_time': new_reset}, '$inc': {'files_processed': 1}})
@@ -87,6 +81,17 @@ class Database:
 
     async def del_caption(self, id):
         await self.col.update_one({'id': int(id)}, {'$unset': {'caption': ""}})
+
+    # ================= SYSTEM CONFIG (MAINTENANCE) =================
+    async def get_maintenance(self):
+        doc = await self.settings.find_one({"_id": "maintenance"})
+        return doc.get("state", False) if doc else False
+
+    async def toggle_maintenance(self):
+        state = await self.get_maintenance()
+        new_state = not state
+        await self.settings.update_one({"_id": "maintenance"}, {"$set": {"state": new_state}}, upsert=True)
+        return new_state
 
     # ================= ADMIN TOOLS =================
     async def grant_premium(self, id, days):
@@ -107,8 +112,7 @@ class Database:
         return user.get('is_banned', False) if user else False
 
     async def get_users_page(self, skip=0, limit=10):
-        cursor = self.col.find({}).skip(skip).limit(limit)
-        return await cursor.to_list(length=limit)
+        return await self.col.find({}).skip(skip).limit(limit).to_list(length=limit)
 
     async def total_users_count(self):
         return await self.col.count_documents({})

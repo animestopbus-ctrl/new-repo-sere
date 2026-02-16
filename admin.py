@@ -5,7 +5,7 @@ import datetime
 import os
 import sys
 import speedtest
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReactionTypeEmoji, InputMediaPhoto
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReactionTypeEmoji
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 import secret
@@ -44,14 +44,12 @@ def run_speedtest_sync():
 
 async def speedtest_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("⚡"), is_big=True)
-    except: pass
     msg = await update.message.reply_text("⏳ <b>Initializing Server Speedtest...</b>\n<i>This takes about 15 seconds.</i>", parse_mode=ParseMode.HTML)
     loop = asyncio.get_running_loop()
     try:
         img_url = await loop.run_in_executor(None, run_speedtest_sync)
         await msg.delete()
-        await update.message.reply_photo(photo=img_url, caption="🚀 <b>SERVER SPEEDTEST COMPLETE</b>", parse_mode=ParseMode.HTML)
+        await update.message.reply_photo(photo=img_url, caption="🚀 <b>SERVER SPEEDTEST COMPLETE</b>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     except Exception as e:
         await msg.edit_text(f"❌ Speedtest Failed: {str(e)}")
 
@@ -86,12 +84,10 @@ async def users_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= CORE ADMIN COMMANDS =================
 async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji("📊"), is_big=True)
-    except: pass
     total_users = await db.total_users_count()
     db_storage = await db.get_db_stats()
-    stats_text = f"📊 <b>SYSTEM TELEMETRY</b>\n\n<blockquote>🤖 <b>Status:</b> 🟢 <i>Operational</i>\n⏱ <b>Uptime:</b> <code>{get_uptime()}</code>\n👥 <b>Users:</b> <code>{total_users}</code>\n🗄️ <b>DB Storage:</b> <code>{db_storage}</code></blockquote>"
-    await update.message.reply_text(stats_text, parse_mode=ParseMode.HTML)
+    stats_text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n📊 <b>SYSTEM TELEMETRY</b>\n\n<blockquote>🤖 <b>Status:</b> 🟢 <i>Operational</i>\n⏱ <b>Uptime:</b> <code>{get_uptime()}</code>\n👥 <b>Users:</b> <code>{total_users}</code>\n🗄️ <b>DB Storage:</b> <code>{db_storage}</code></blockquote>"
+    await update.message.reply_text(stats_text, parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
@@ -105,7 +101,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
             success += 1
             await asyncio.sleep(0.05) 
         except Exception: failed += 1
-    await msg.edit_text(f"✅ <b>Broadcast Complete!</b>\n🟢 Success: <code>{success}</code>\n🔴 Failed: <code>{failed}</code>", parse_mode=ParseMode.HTML)
+    await msg.edit_text(f"✅ <b>Broadcast Complete!</b>\n<blockquote>🟢 Success: <code>{success}</code>\n🔴 Failed: <code>{failed}</code></blockquote>", parse_mode=ParseMode.HTML)
 
 async def add_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
@@ -159,9 +155,21 @@ def get_cmds_markup():
 
 async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
-    try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
+    
+    # 🔥 SMOOTH ANIMATION: Send Sticker -> Sip -> Delete -> Send Panel
+    try:
+        sticker_msg = await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
+        await asyncio.sleep(1.2) # Take a sip
+        await sticker_msg.delete()
     except: pass
-    await update.message.reply_photo(photo=random.choice(secret.IMAGE_LINKS), caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\nSelect an option below to manage the engine.", parse_mode=ParseMode.HTML, reply_markup=get_panel_markup())
+
+    await update.message.reply_photo(
+        photo=random.choice(secret.IMAGE_LINKS), 
+        caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\n<blockquote>Select an option below to manage the engine.</blockquote>", 
+        parse_mode=ParseMode.HTML, 
+        reply_markup=get_panel_markup(),
+        message_effect_id=random.choice(secret.MESSAGE_EFFECTS)
+    )
 
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -171,29 +179,30 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "admin_close": await query.message.delete()
     elif data == "admin_home":
-        try: await query.edit_message_caption(caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\nSelect an option below to manage the engine.", parse_mode=ParseMode.HTML, reply_markup=get_panel_markup())
+        try: await query.edit_message_caption(caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛡️ <b>ADMIN CONTROL PANEL</b>\n\n<blockquote>Select an option below to manage the engine.</blockquote>", parse_mode=ParseMode.HTML, reply_markup=get_panel_markup())
         except: pass
     elif data == "admin_cmds":
-        try: await query.edit_message_caption(caption="🛠️ <b>ADMIN COMMAND DIRECTORY</b>\n\nClick a command below to view its details and usage.", parse_mode=ParseMode.HTML, reply_markup=get_cmds_markup())
+        try: await query.edit_message_caption(caption="<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛠️ <b>ADMIN COMMAND DIRECTORY</b>\n\n<blockquote>Click a command below to view its details and usage.</blockquote>", parse_mode=ParseMode.HTML, reply_markup=get_cmds_markup())
         except: pass
     elif data.startswith("cmd_help_"):
         cmd = data.split("_")[2]
         info = ADMIN_CMDS.get(cmd, "Info not found.")
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Commands", callback_data="admin_cmds", api_kwargs={"style": "primary"})]])
-        try: await query.edit_message_caption(caption=f"🛠️ <b>COMMAND INFO</b>\n\n{info}", parse_mode=ParseMode.HTML, reply_markup=markup)
+        try: await query.edit_message_caption(caption=f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🛠️ <b>COMMAND INFO</b>\n\n<blockquote>{info}</blockquote>", parse_mode=ParseMode.HTML, reply_markup=markup)
         except: pass
     elif data == "admin_stats":
-        stats = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n📊 <b>SYSTEM STATS</b>\n├ 👥 Total Users: <code>{await db.total_users_count()}</code>\n╰ 🗄️ DB Size: <code>{await db.get_db_stats()}</code>"
+        stats = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n📊 <b>SYSTEM STATS</b>\n<blockquote>├ 👥 Total Users: <code>{await db.total_users_count()}</code>\n╰ 🗄️ DB Size: <code>{await db.get_db_stats()}</code></blockquote>"
         try: await query.edit_message_caption(caption=stats, parse_mode=ParseMode.HTML, reply_markup=get_panel_markup())
         except: pass
     elif data.startswith("admin_list_"):
         page = int(data.split("_")[2])
         skip, limit = page * 5, 5
         users = await db.get_users_page(skip, limit)
-        text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n📜 <b>USER DATABASE (Page {page+1})</b>\n\n"
+        text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n📜 <b>USER DATABASE (Page {page+1})</b>\n\n<blockquote>"
         for u in users:
             st = "💎 VIP" if u.get('is_premium') else ("🔨 BANNED" if u.get('is_banned') else "🆓 FREE")
             text += f"👤 <b>{u['name']}</b> [<code>{u['id']}</code>]\n├ <i>Tier:</i> {st}\n╰ <i>Files:</i> {u.get('files_processed', 0)}\n\n"
+        text += "</blockquote>"
         buttons = []
         if page > 0: buttons.append(InlineKeyboardButton("⬅️ Back", callback_data=f"admin_list_{page-1}", api_kwargs={"style": "primary"}))
         if skip + limit < await db.total_users_count(): buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"admin_list_{page+1}", api_kwargs={"style": "primary"}))

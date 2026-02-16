@@ -1,17 +1,23 @@
 import logging
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
-# Import the Keep Alive Server (Ensure you have keep_alive.py in your folder)
+# Import the Keep Alive Server
 from keep_alive import keep_alive
 
 # Import Secrets & Scripts
 import secret
 import script
 
-logging.basicConfig(level=logging.INFO)
+# Configure Logging (SILENCING HTTPX SPAM)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logging.getLogger("httpx").setLevel(logging.WARNING) # <--- THIS KILLS THE TERMINAL SPAM!
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 if __name__ == '__main__':
-    print("🚀 TITANIUM 26.0 (MODULAR ARCHITECTURE) IS ONLINE.")
+    print("🚀 TITANIUM 26.1 (UI POLISHED & SPAM FIXED) IS ONLINE.")
     
     # 1. Start Web Server for Render
     keep_alive()

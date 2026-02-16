@@ -13,7 +13,6 @@ import secret
 import script
 import admin 
 
-# 📄 LOGGING CONFIGURATION
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
     level=logging.INFO,
@@ -23,9 +22,6 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 async def startup_setup(app):
-    """Fires exactly when the bot boots up. Injects the Menu and logs to the channel."""
-    
-    # 1. 🎛️ INJECT THE TELEGRAM MENU COMMANDS
     menu_commands = [
         BotCommand("start", "⚡ Boot up the engine"),
         BotCommand("settings", "⚙️ Account dashboard & limits"),
@@ -41,53 +37,29 @@ async def startup_setup(app):
         BotCommand("speedtest", "👑 [Admin] Check server network speed"),
         BotCommand("maintenance", "👑 [Admin] Toggle Maintenance Mode")
     ]
-    try:
-        await app.bot.set_my_commands(menu_commands)
-        logging.info("✅ Telegram Menu Commands Successfully Injected!")
-    except Exception as e:
-        logging.error(f"Failed to inject menu commands: {e}")
+    try: await app.bot.set_my_commands(menu_commands)
+    except: pass
 
-    # 2. 📢 SEND SILENT LOG TO CHANNEL ONLY
     if secret.LOG_CHANNEL_ID:
         try:
-            msg = (
-                f"🚀 <b>BOT ENGINE INITIATED</b>\n\n"
-                f"<blockquote>"
-                f"🤖 <b>Bot Name:</b> @{app.bot.username}\n"
-                f"🌍 <b>Hosted On:</b> Render.com\n"
-                f"🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n"
-                f"⚙️ <b>Workers:</b> {secret.WORKERS} Parallel Threads Active\n"
-                f"🗄️ <b>Database:</b> MongoDB Synchronized\n"
-                f"🎛️ <b>UI:</b> Telegram Menu Injected"
-                f"</blockquote>"
-            )
+            msg = f"🚀 <b>BOT ENGINE INITIATED</b>\n\n<blockquote>🤖 <b>Bot Name:</b> @{app.bot.username}\n🌍 <b>Hosted On:</b> Render.com\n🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n⚙️ <b>Workers:</b> {secret.WORKERS} Parallel Threads Active\n🗄️ <b>Database:</b> MongoDB Synchronized\n🎛️ <b>UI:</b> Telegram Menu Injected</blockquote>"
             await app.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=msg, parse_mode=ParseMode.HTML, disable_notification=True)
-        except Exception as e: pass
+        except: pass
 
 
 if __name__ == '__main__':
-    print("🚀 TITANIUM 34.0 (UI POLISH & PACING UPDATE ONLINE).")
+    print("🚀 TITANIUM 37.0 (ANIMATIONS & REACTIONS RESTORED).")
     
     keep_alive()
+    app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).concurrent_updates(True).post_init(startup_setup).build()
     
-    app = (
-        ApplicationBuilder()
-        .token(secret.BOT_TOKEN)
-        .connection_pool_size(secret.WORKERS) 
-        .concurrent_updates(True)             
-        .post_init(startup_setup)            
-        .build()
-    )
-    
-    # 🟢 CORE USER UTILITIES 🟢
+    # 🟢 CORE USER UTILITIES
     app.add_handler(CommandHandler("start", script.start))
     app.add_handler(CommandHandler("help", script.help_cmd))
     app.add_handler(CommandHandler("info", script.info_cmd))
     app.add_handler(CommandHandler("settings", script.settings_cmd))
     app.add_handler(CommandHandler("feedback", script.feedback_cmd))
     app.add_handler(CommandHandler("alive", script.alive_cmd))
-    
-    # 🛠️ DIAGNOSTICS 
     app.add_handler(CommandHandler("ping", script.ping_cmd))
     app.add_handler(CommandHandler("id", script.id_cmd))
     app.add_handler(CommandHandler("status", script.status_cmd))
@@ -95,12 +67,15 @@ if __name__ == '__main__':
     # 🎥 MEDIA ENGINE
     app.add_handler(MessageHandler(filters.VIDEO | filters.Document.ALL, script.handle_media))
     
+    # 🔥 RANDOM TEXT ENGINE (Reacts to random user messages)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, script.handle_text))
+    
     # 💎 PREMIUM SETTINGS
     app.add_handler(CommandHandler("set_caption", script.set_cap))
     app.add_handler(CommandHandler("del_caption", script.del_cap))
     app.add_handler(CommandHandler("my_caption", script.my_cap))
     
-    # 👑 ADMIN COMMANDS & DASHBOARD
+    # 👑 ADMIN COMMANDS
     app.add_handler(CommandHandler("panel", admin.panel))
     app.add_handler(CommandHandler("stats", admin.stats_cmd)) 
     app.add_handler(CommandHandler("broadcast", admin.broadcast)) 
@@ -115,7 +90,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("update", admin.update_bot_cmd))
     app.add_handler(CommandHandler("maintenance", admin.maintenance_cmd))
     
-    # 🔥 FIXED: The Regex now correctly matches BOTH 'admin_' and 'cmd_help_' callbacks!
+    # Callbacks
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     

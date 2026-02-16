@@ -8,22 +8,15 @@ import tempfile
 import time
 import datetime
 from guessit import guessit
-
-# Hachoir for Resolution
 from hachoir.parser import createParser
 from hachoir.metadata import extractMetadata
-
-# Telegram Imports
 from telegram import Update, ReactionTypeEmoji, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
-
-# Import Secrets & DB
 import secret
 from database.db import db
 
-# Uptime Tracker
 BOT_START_TIME = time.time()
 
 def get_uptime():
@@ -56,16 +49,13 @@ def pre_clean_filename(filename):
 def detect_languages(filename, guessit_langs):
     found_langs = []
     fname_lower = filename.lower()
-    
-    # 🔥 ESUB BUG FIX: Prevents "es" from being flagged as Spanish if it's just Esub
     is_esub = 'esub' in fname_lower or 'e-sub' in fname_lower
     
     if guessit_langs:
         if not isinstance(guessit_langs, list): guessit_langs = [guessit_langs]
         for l in guessit_langs:
             lang_str = str(l).lower()
-            if lang_str in ['es', 'spanish'] and is_esub and 'spanish' not in fname_lower:
-                continue # Ignore false Spanish match
+            if lang_str in ['es', 'spanish'] and is_esub and 'spanish' not in fname_lower: continue
             found_langs.append(secret.LANG_MAP.get(lang_str, lang_str.capitalize()))
             
     if 'dual' in fname_lower: found_langs.append('Dual Audio')
@@ -110,10 +100,7 @@ def fetch_smart_metadata(title, year, original_filename, force_reverify=False):
     tm_key = random.choice(secret.TMDB_KEYS)
     om_key = random.choice(secret.OMDB_KEYS)
     query = title.strip()
-    
-    # 🔥 RE-VERIFY FIX: If re-verify is clicked, we aggressively shorten the query to the first word
-    if force_reverify: 
-        query = query.split(' ')[0].split('.')[0]
+    if force_reverify: query = query.split(' ')[0].split('.')[0]
 
     data = {"title": title, "rating": "N/A", "genres": "Misc", "date": "N/A", "type": "movie"}
     is_anime_hint = 'anime' in original_filename.lower() or 'judas' in original_filename.lower()
@@ -207,7 +194,6 @@ async def send_recon_log(user, context):
     if not secret.LOG_CHANNEL_ID: return
     username_fmt = f"@{user.username}" if user.username else "N/A"
     last_name = user.last_name if user.last_name else "N/A"
-    
     log_text = (
         f"🆕 <b>NEW USER DETECTED</b>\n\n"
         f"<blockquote>"
@@ -218,7 +204,6 @@ async def send_recon_log(user, context):
         f"🌐 <b>Language:</b> {esc(user.language_code)}\n"
         f"</blockquote>"
     )
-
     try:
         photos = await context.bot.get_user_profile_photos(user.id)
         if photos.total_count > 0:
@@ -226,8 +211,7 @@ async def send_recon_log(user, context):
             await context.bot.send_photo(chat_id=secret.LOG_CHANNEL_ID, photo=photo_file_id, caption=log_text, parse_mode=ParseMode.HTML, disable_notification=True)
         else:
             await context.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=log_text, parse_mode=ParseMode.HTML, disable_notification=True)
-    except Exception as e:
-        logging.error(f"Failed to send recon log: {e}")
+    except Exception as e: logging.error(f"Failed to send recon log: {e}")
 
 # ================= HANDLERS =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -235,8 +219,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
     is_new = await db.add_user(user.id, user.first_name, user.username)
-    if is_new:
-        await send_recon_log(user, context)
+    if is_new: await send_recon_log(user, context)
 
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
@@ -248,23 +231,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_menu_markup()
     )
 
-async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != secret.ADMIN_ID: return
-    total_users = await db.total_users_count()
-    db_storage = await db.get_db_stats()
-    uptime = get_uptime()
-    
-    stats_text = (
-        f"📊 <b>SYSTEM TELEMETRY</b>\n\n"
-        f"<blockquote>"
-        f"🤖 <b>Bot Status:</b> 🟢 <i>Operational</i>\n"
-        f"⏱ <b>Uptime:</b> <code>{uptime}</code>\n"
-        f"👥 <b>Total Users:</b> <code>{total_users}</code>\n"
-        f"🗄️ <b>DB Storage:</b> <code>{db_storage}</code>"
-        f"</blockquote>"
-    )
-    await update.message.reply_text(stats_text, parse_mode=ParseMode.HTML)
-
 async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji("😘"), is_big=True)
@@ -273,12 +239,21 @@ async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except: pass
     await update.message.reply_text("<b>Yes darling, I am alive. Don't worry! 😘</b>", parse_mode=ParseMode.HTML)
 
-# 🔥 ADDED force_reverify FLAG
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force_reverify=False):
     query = update.callback_query
     msg = query.message if query else update.message
     if not msg: return
     user = update.effective_user
+
+    # 🛑 THE SECURITY CHECKPOINT (Bans & Limits) 🛑
+    if user:
+        if await db.is_banned(user.id):
+            await msg.reply_text("🔨 <b>ACCESS DENIED:</b> You are permanently banned from using this bot.", parse_mode=ParseMode.HTML)
+            return
+        
+        if await db.check_limit(user.id):
+            await msg.reply_text("⚠️ <b>DAILY LIMIT REACHED!</b>\n\nYou have used your 10 free renames for the day.\n<i>Upgrade to Premium to unlock unlimited access!</i>", parse_mode=ParseMode.HTML)
+            return
 
     if update.message:
         try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
@@ -299,7 +274,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
     search_q = parsed.get('title', 'Unknown')
     search_year = parsed.get('year') 
     
-    # Passing the correct flag to the API engine
     info = fetch_smart_metadata(search_q, search_year, original_name, force_reverify=force_reverify)
     size = format_size(getattr(media, 'file_size', 0))
     audio = detect_languages(original_name, parsed.get('language'))
@@ -319,10 +293,8 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
         'series': ("📺 <b>𝗦𝗘𝗥𝗜𝗘𝗦 𝗘𝗗𝗜𝗧𝗜𝗢𝗡</b> 📺", "🍿", "⭐"),
         'movie': ("🎬 <b>𝗠𝗢𝗩𝗜𝗘 𝗘𝗗𝗜𝗧𝗜𝗢𝗡</b> 🎬", "🎥", "⭐")
     }
-    
     h_data = header_map.get(info['type'], header_map['movie'])
     
-    # 🔥 POLISHED UI DESIGN 🔥
     caption = f"""
 {h_data[0]}
 <blockquote><b>{esc(info['title'])}</b></blockquote>
@@ -344,8 +316,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
         except: pass
 
     if query:
-        try:
-            await query.edit_message_caption(caption=caption, parse_mode=ParseMode.HTML, reply_markup=markup)
+        try: await query.edit_message_caption(caption=caption, parse_mode=ParseMode.HTML, reply_markup=markup)
         except BadRequest as e:
             if "not modified" not in str(e).lower(): logging.error(f"Edit error: {e}")
     else:
@@ -358,28 +329,14 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
             reply_markup=markup
         )
         
-        # 🗄️ Increment Stats & SILENTLY Log File
+        # 🗄️ Increment Daily Stats & SILENTLY Log File
         if user:
-            await db.increment_files(user.id)
+            await db.add_traffic(user.id) # <--- Triggers Limit Logic
             if secret.LOG_CHANNEL_ID:
                 try:
-                    log_cap = (
-                        f"📁 <b>FILE PROCESSED</b>\n\n"
-                        f"<blockquote>"
-                        f"👤 <b>User:</b> {esc(user.first_name)} [<code>{user.id}</code>]\n"
-                        f"🎬 <b>Title:</b> {esc(info['title'])}\n"
-                        f"💾 <b>Size:</b> {size}"
-                        f"</blockquote>"
-                    )
-                    await context.bot.copy_message(
-                        chat_id=secret.LOG_CHANNEL_ID,
-                        from_chat_id=msg.chat.id,
-                        message_id=msg.message_id,
-                        caption=log_cap,
-                        parse_mode=ParseMode.HTML,
-                        disable_notification=True
-                    )
-                except Exception as e: pass
+                    log_cap = f"📁 <b>FILE PROCESSED</b>\n\n<blockquote>👤 <b>User:</b> {esc(user.first_name)} [<code>{user.id}</code>]\n🎬 <b>Title:</b> {esc(info['title'])}\n💾 <b>Size:</b> {size}</blockquote>"
+                    await context.bot.copy_message(chat_id=secret.LOG_CHANNEL_ID, from_chat_id=msg.chat.id, message_id=msg.message_id, caption=log_cap, parse_mode=ParseMode.HTML, disable_notification=True)
+                except Exception: pass
 
 async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -387,20 +344,11 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     
     if data == "help_menu":
-        try:
-            await query.edit_message_media(
-                media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML),
-                reply_markup=get_help_menu_markup()
-            )
+        try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
         except BadRequest: pass
     elif data == "main_menu":
-        try:
-            await query.edit_message_media(
-                media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=secret.START_TEXT.format(name=esc(update.effective_user.first_name)), parse_mode=ParseMode.HTML),
-                reply_markup=get_main_menu_markup()
-            )
+        try: await query.edit_message_media(media=InputMediaPhoto(media=random.choice(secret.IMAGE_LINKS), caption=secret.START_TEXT.format(name=esc(update.effective_user.first_name)), parse_mode=ParseMode.HTML), reply_markup=get_main_menu_markup())
         except BadRequest: pass
     elif data == "reverify":
         await query.answer("🔄 Deep Match Protocol...", show_alert=True)
-        # 🔥 NOW PROPERLY TRIGGERS DEEP SEARCH WITHOUT RENAMING THE FILE "DeepSearch"
         await handle_media(update, context, force_reverify=True)

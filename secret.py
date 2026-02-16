@@ -2,8 +2,8 @@ import os
 
 # 🚨 CORE CREDENTIALS 🚨
 BOT_TOKEN = os.getenv("BOT_TOKEN", "7940504106:AAGo7wvSTxcu8Uq80ltFZ9wpOxZiigHrGTw")
-MONGO_URI = os.getenv("MONGO_URI", "YOUR_MONGODB_URL_HERE")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://LastPerson07:N7z0DRcklsZzqCzd@storagebot.5fuk3xn.mongodb.net/?appName=StorageBot")
+ADMIN_ID = int(os.getenv("ADMIN_ID", "1633472140"))
 
 LOG_CHANNEL_STR = os.getenv("LOG_CHANNEL_ID", "-1003144372708")
 try:
@@ -74,3 +74,4 @@ HELP_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
 4️⃣ I generate a beautiful, categorized layout and send the file back to you with its original HD thumbnail perfectly intact!
 
 <i>💡 <b>Pro Tip:</b> If the AI catches the wrong movie, tap the "🔄 RE-VERIFY" button!</i>"""
+

@@ -34,9 +34,12 @@ class Database:
             return True
         return False
 
+    async def get_all_users(self):
+        """Yields all users for Broadcasting"""
+        return self.col.find({})
+
     # ================= LIMITS & PREMIUM =================
     async def check_premium_status(self, id):
-        """Silently checks if a user's premium has expired and revokes it if so."""
         user = await self.col.find_one({'id': int(id)})
         if not user or not user.get('is_premium'): return False
         
@@ -47,26 +50,21 @@ class Database:
         return True
 
     async def check_limit(self, id):
-        """Returns True if user is BLOCKED (Limit Reached), False if ALLOWED."""
         user = await self.col.find_one({'id': int(id)})
         if not user: return False
-
-        if await self.check_premium_status(id): return False # Premium ignores limits
+        if await self.check_premium_status(id): return False 
             
         now = datetime.datetime.now()
         reset_time = user.get('limit_reset_time')
 
-        # If time passed, reset to 0
         if reset_time is None or now >= reset_time:
             await self.col.update_one({'id': int(id)}, {'$set': {'daily_usage': 0, 'limit_reset_time': None}})
             return False 
 
-        if user.get('daily_usage', 0) >= 10:
-            return True # BLOCKED
+        if user.get('daily_usage', 0) >= 10: return True 
         return False
 
     async def add_traffic(self, id):
-        """Increments usage. Starts 24h timer on first use."""
         user = await self.col.find_one({'id': int(id)})
         if not user or user.get('is_premium'): return
 
@@ -78,6 +76,17 @@ class Database:
             await self.col.update_one({'id': int(id)}, {'$set': {'daily_usage': 1, 'limit_reset_time': new_reset}, '$inc': {'files_processed': 1}})
         else:
             await self.col.update_one({'id': int(id)}, {'$inc': {'daily_usage': 1, 'files_processed': 1}})
+
+    # ================= CUSTOM CAPTIONS =================
+    async def set_caption(self, id, caption):
+        await self.col.update_one({'id': int(id)}, {'$set': {'caption': caption}})
+
+    async def get_caption(self, id):
+        user = await self.col.find_one({'id': int(id)})
+        return user.get('caption', None) if user else None
+
+    async def del_caption(self, id):
+        await self.col.update_one({'id': int(id)}, {'$unset': {'caption': ""}})
 
     # ================= ADMIN TOOLS =================
     async def grant_premium(self, id, days):

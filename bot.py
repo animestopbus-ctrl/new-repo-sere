@@ -1,7 +1,7 @@
 import logging
 import random
 import datetime
-from telegram import ParseMode
+from telegram.constants import ParseMode # <--- FIXED IMPORT
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 # Import the Keep Alive Server
@@ -41,7 +41,7 @@ async def startup_log(app):
             logging.error(f"Startup log failed: {e}")
 
 if __name__ == '__main__':
-    print("🚀 TITANIUM 29.0 (EFFECTS & PARALLEL WORKERS) IS ONLINE.")
+    print("🚀 TITANIUM 29.1 (SYSTEM ONLINE).")
     
     keep_alive()
     

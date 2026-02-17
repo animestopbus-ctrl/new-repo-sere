@@ -1,6 +1,5 @@
 import os
 import logging
-import asyncio
 from aiohttp import web
 from database.db import db
 
@@ -15,564 +14,212 @@ def get_domain(request):
     fallback = f"{request.scheme}://{request.host}"
     return os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", fallback)).rstrip('/')
 
-# ================= REDESIGNED HTML UI =================
-HTML_TEMPLATE = r"""
-<!DOCTYPE html>
+# ================= REDESIGNED HTML UI (FROM YOUR REQ.HTML) =================
+# Using raw string (r"") to prevent Python escape sequence bugs
+HTML_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>THE UPDATED GUYS | {{FILE_NAME}}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://vjs.zencdn.net/8.3.0/video-js.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
-    {{ADDITIONAL_HEAD}}
+
     <style>
         :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            --accent-primary: #6366f1;
-            --accent-secondary: #06b6d4;
-            --text-primary: #f1f5f9;
-            --text-secondary: #cbd5e1;
-            --text-muted: #94a3b8;
-            --border-light: rgba(255,255,255,0.1);
-            --border-dark: rgba(255,255,255,0.05);
-            --shadow-sm: 0 4px 6px -1px rgba(0,0,0,0.1);
-            --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --bg-primary: rgb(2, 6, 23);
+            --bg-secondary: rgb(30, 41, 59);
+            --bg-glass: rgba(15, 23, 42, 0.6);
+            --bg-glass-dark: rgba(2, 6, 23, 0.95);
+            --accent-rose: rgb(244, 63, 94);
+            --accent-rose-light: rgb(248, 113, 113);
+            --accent-blue: rgb(37, 99, 235);
+            --accent-amber: rgb(251, 191, 36);
+            --text-primary: rgb(248, 250, 252);
+            --text-secondary: rgb(203, 213, 225);
+            --text-muted: rgb(148, 163, 184);
+            --border-subtle: rgba(255, 255, 255, 0.05);
+            --border-normal: rgba(255, 255, 255, 0.1);
         }
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+
+        .plyr__control .lucide { fill: none !important; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: 'Poppins', sans-serif;
-            background: var(--bg-primary);
+            font-family: "Inter", sans-serif;
+            background: linear-gradient(to bottom, var(--bg-primary), #0a0e1a);
             color: var(--text-primary);
             min-height: 100vh;
-            line-height: 1.5;
+            line-height: 1.6;
         }
+
         .header {
-            position: sticky;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-light);
-            box-shadow: var(--shadow-sm);
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+            background: var(--bg-glass-dark); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
         }
+
         .header-content {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 1rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            max-width: 1100px; margin: 0 auto; padding: 1rem 1.5rem;
+            display: flex; align-items: center; justify-content: space-between;
         }
+
         .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-decoration: none;
+            font-family: "JetBrains Mono", monospace; font-size: 1.5rem; font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-rose), var(--accent-amber));
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+            text-decoration: none; display: inline-block;
         }
-        .nav {
-            display: flex;
-            gap: 1.5rem;
-        }
-        .nav a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s ease;
-        }
-        .nav a:hover {
-            color: var(--accent-primary);
-        }
-        .mobile-menu {
-            display: none;
-            background: none;
-            border: none;
-            color: var(--text-primary);
-            cursor: pointer;
-        }
-        .hero {
-            text-align: center;
-            padding: 4rem 2rem 2rem;
-            background: linear-gradient(to bottom, var(--bg-secondary), transparent);
-        }
-        .hero-title {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .hero-subtitle {
-            color: var(--text-muted);
-            font-size: 1.25rem;
-        }
-        .main-container {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-        .player-section {
-            margin-bottom: 3rem;
-        }
+
+        .nav { display: flex; gap: 2rem; }
+        .nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: color 0.2s; }
+        .nav a:hover { color: var(--accent-rose); }
+        .mobile-menu { display: none; background: none; border: none; color: var(--text-primary); cursor: pointer; }
+
+        .slogan { text-align: center; padding: 6.5rem 1.5rem 0.5rem; font-size: 1rem; font-weight: 600; letter-spacing: 0.5px; }
+        .slogan-text { color: var(--text-secondary); }
+        .slogan-highlight { background: linear-gradient(135deg, var(--accent-rose), var(--accent-amber)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
+
         .player-wrapper {
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: var(--shadow-md);
-            background: var(--bg-tertiary);
+            margin-bottom: 1.5rem; border-radius: 16px; overflow: hidden;
+            background: var(--bg-secondary); border: 1px solid var(--border-subtle);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
         }
-        .video-container {
-            position: relative;
-            width: 100%;
-            padding-bottom: 56.25%;
+
+        .video-container { position: relative; width: 100%; padding-bottom: 56.25%; background: #000; overflow: hidden; }
+        .video-container video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+        .video-container .plyr { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+        .info-card {
+            background: var(--bg-glass); backdrop-filter: blur(20px);
+            border: 1px solid var(--border-subtle); border-radius: 12px;
+            padding: 1.75rem; margin-bottom: 1.5rem;
         }
-        .video-container video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-        .info-section {
-            margin-top: 2rem;
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: var(--shadow-sm);
-        }
-        .file-title {
-            font-size: 1.75rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-        .file-meta {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .meta-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: rgba(99, 102, 241, 0.1);
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 9999px;
-            color: var(--accent-primary);
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-        .actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .btn {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex: 1 1 200px;
-            max-width: 250px;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-            color: var(--text-primary);
-            border: none;
-        }
-        .btn-primary:hover {
-            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
-            transform: translateY(-2px);
-        }
-        .btn-secondary {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-light);
-        }
-        .btn-secondary:hover {
-            background: rgba(99, 102, 241, 0.1);
-            border-color: var(--accent-primary);
-            color: var(--accent-primary);
-            transform: translateY(-2px);
-        }
-        .dropdown {
-            position: relative;
-            flex: 1 1 200px;
-            max-width: 250px;
-        }
+
+        .file-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1rem; line-height: 1.4; word-break: break-word; }
+        .file-meta { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .meta-tag { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.875rem; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 6px; color: var(--accent-rose); font-size: 0.8125rem; font-weight: 600; }
+
+        .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 0.625rem; padding: 0.875rem 1.25rem; background: var(--bg-secondary); border: 1px solid var(--border-normal); border-radius: 8px; color: var(--text-primary); font-size: 0.875rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s; }
+        .btn:hover { background: rgba(244, 63, 94, 0.1); border-color: var(--accent-rose); transform: translateY(-1px); }
+        .btn-primary { background: linear-gradient(135deg, var(--accent-rose), rgb(225, 29, 72)); border-color: transparent; }
+        .btn-primary:hover { box-shadow: 0 8px 20px rgba(244, 63, 94, 0.3); }
+        .btn svg, .btn img { width: 18px; height: 18px; }
+
+        .dropdown { position: relative; }
         .dropdown-menu {
-            position: absolute;
-            top: calc(100% + 0.5rem);
-            left: 0;
-            width: 100%;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-light);
-            border-radius: 8px;
-            padding: 0.75rem;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
-            z-index: 100;
-            box-shadow: var(--shadow-sm);
+            position: absolute; bottom: calc(100% + 0.5rem); right: 0; min-width: 200px; max-width: 280px; max-height: 60vh; overflow-y: auto;
+            background: var(--bg-glass-dark); backdrop-filter: blur(20px); border: 1px solid var(--border-normal); border-radius: 8px; padding: 0.5rem;
+            opacity: 0; visibility: hidden; transform: translateY(10px); transition: all 0.2s; z-index: 100;
         }
-        .dropdown-menu.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        .dropdown-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0.5rem;
-        }
-        .player-link {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            background: var(--bg-tertiary);
-            border-radius: 6px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: all 0.3s ease;
-        }
-        .player-link:hover {
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--accent-primary);
-        }
-        .player-link img {
-            width: 20px;
-            height: 20px;
-        }
-        .explore-section {
-            margin-top: 4rem;
-        }
-        .section-title {
-            font-size: 2rem;
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .section-subtitle {
-            text-align: center;
-            color: var(--text-muted);
-            margin-bottom: 2rem;
-        }
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
-        .card {
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: var(--shadow-sm);
-            transition: all 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-md);
-        }
-        .card-icon {
-            width: 48px;
-            height: 48px;
-            background: rgba(99, 102, 241, 0.1);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 1rem;
-        }
-        .card-icon svg {
-            color: var(--accent-primary);
-            width: 24px;
-            height: 24px;
-        }
-        .card h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-        }
-        .card p {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            margin-bottom: 1.25rem;
-        }
-        .card-link {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.75rem 1rem;
-            background: var(--bg-tertiary);
-            border-radius: 6px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: all 0.3s ease;
-        }
-        .card-link:hover {
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--accent-primary);
-        }
-        .footer {
-            text-align: center;
-            padding: 3rem 2rem 2rem;
-            color: var(--text-muted);
-            font-size: 0.875rem;
-            border-top: 1px solid var(--border-dark);
-            margin-top: 4rem;
-        }
-        .footer a {
-            color: var(--accent-primary);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        /* Video.js Styles */
-        .video-js {
-            font-family: 'Poppins', sans-serif;
-        }
-        .vjs-big-play-button {
-            background: var(--accent-primary) !important;
-            border: none !important;
-            border-radius: 9999px !important;
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3) !important;
-        }
-        .vjs-big-play-button .vjs-icon-placeholder:before {
-            color: var(--text-primary) !important;
-        }
-        .vjs-control-bar {
-            background: var(--bg-secondary) !important;
-            border-top: 1px solid var(--border-light) !important;
-        }
-        .vjs-button > .vjs-icon-placeholder:before {
-            color: var(--text-primary) !important;
-        }
-        .vjs-progress-holder {
-            background: rgba(255,255,255,0.1) !important;
-        }
-        .vjs-load-progress {
-            background: rgba(255,255,255,0.2) !important;
-        }
-        .vjs-play-progress {
-            background: var(--accent-primary) !important;
-        }
-        .vjs-time-divider, .vjs-duration, .vjs-current-time {
-            color: var(--text-secondary) !important;
-        }
-        .vjs-menu-content {
-            background: var(--bg-secondary) !important;
-            border: 1px solid var(--border-light) !important;
-            border-radius: 8px !important;
-        }
-        .vjs-menu li {
-            color: var(--text-primary) !important;
-        }
-        .vjs-menu li.vjs-selected {
-            background: rgba(99, 102, 241, 0.1) !important;
-            color: var(--accent-primary) !important;
-        }
-        /* Custom Buttons */
-        .vjs-aspect-button, .vjs-theater-button {
-            position: relative;
-        }
-        .vjs-aspect-button .vjs-icon-placeholder:before, .vjs-theater-button .vjs-icon-placeholder:before {
-            content: none;
-        }
-        .vjs-aspect-button i, .vjs-theater-button i {
-            stroke: var(--text-primary);
-            width: 18px;
-            height: 18px;
-        }
-        .vjs-aspect-button:hover i, .vjs-theater-button:hover i {
-            stroke: var(--accent-primary);
-        }
-        .aspect-dropdown {
-            position: absolute;
-            bottom: calc(100% + 10px);
-            right: 0;
-            min-width: 180px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-light);
-            border-radius: 8px;
-            padding: 0.5rem;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(10px);
-            transition: all 0.3s ease;
-            z-index: 1000;
-            box-shadow: var(--shadow-sm);
-        }
-        .aspect-dropdown.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        .aspect-item {
-            padding: 0.5rem 0.75rem;
-            border-radius: 4px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .aspect-item:hover {
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--accent-primary);
-        }
-        .aspect-item.active {
-            background: rgba(99, 102, 241, 0.2);
-            color: var(--accent-primary);
-        }
-        /* Theater Mode */
-        .theater-mode .main-container {
-            max-width: none;
-            padding: 0;
-        }
-        .theater-mode .player-wrapper {
-            border-radius: 0;
-            margin: 0;
-            box-shadow: none;
-        }
-        .theater-mode .video-container {
-            padding-bottom: 56.25%;
-        }
-        /* Audio Mode */
-        body.is-audio .video-container {
-            padding-bottom: 0;
-            height: 200px;
-        }
-        body.is-audio .video-container #waveform {
-            width: 100%;
-            height: 100%;
-        }
-        /* Animations */
-        .fade-in {
-            animation: fadeIn 0.5s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg-primary);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--accent-primary);
-        }
-        html {
-            scroll-behavior: smooth;
-            scroll-padding-top: 70px;
-        }
-        /* Media Queries */
+        .dropdown-menu.active { opacity: 1; visibility: visible; transform: translateY(0); }
+        .dropdown-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+        .player-link { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.625rem; background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.8125rem; font-weight: 500; transition: all 0.2s; }
+        .player-link img { width: 16px; height: 16px; flex-shrink: 0; }
+        .player-link:hover { background: rgba(244, 63, 94, 0.1); border-color: var(--accent-rose); color: var(--accent-rose); }
+
+        .cards-section { margin: 3rem 0; }
+        .section-header { text-align: center; margin-bottom: 2.5rem; }
+        .section-title { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--accent-rose), var(--accent-amber)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .section-subtitle { color: var(--text-muted); }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+        .card { background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 2rem; transition: all 0.3s; }
+        .card:hover { border-color: var(--accent-rose); transform: translateY(-4px); box-shadow: 0 12px 40px rgba(244, 63, 94, 0.2); }
+        .card-icon { width: 48px; height: 48px; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem; }
+        .card-icon svg { color: var(--accent-rose); }
+        .card h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem; }
+        .card p { color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6; margin-bottom: 1.5rem; }
+        .card-links { display: flex; flex-direction: column; gap: 0.5rem; }
+        .card-link { display: flex; align-items: center; justify-content: space-between; padding: 0.625rem 0.875rem; background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.8125rem; font-weight: 500; transition: all 0.2s; }
+        .card-link:hover { background: rgba(244, 63, 94, 0.1); border-color: var(--accent-rose); color: var(--accent-rose); }
+
+        .footer { text-align: center; padding: 2.5rem 1.5rem; border-top: 1px solid var(--border-subtle); color: var(--text-muted); font-size: 0.875rem; }
+        .footer a { color: var(--accent-rose); text-decoration: none; font-weight: 600; }
+
+        .plyr { --plyr-color-main: rgb(244, 63, 94); border-radius: 0 0 16px 16px; }
+        .plyr__control { color: white; }
+        .plyr__control:hover { background: rgba(244, 63, 94, 0.2); }
+        .plyr__control--overlaid { background: rgba(244, 63, 94, 0.9); }
+        .plyr__menu { background: var(--bg-glass-dark) !important; backdrop-filter: blur(20px); border: 1px solid var(--border-normal); border-radius: 8px; }
+        .plyr__menu__container .plyr__control { color: var(--text-primary); }
+        .plyr__menu__container .plyr__control:hover { background: rgba(244, 63, 94, 0.1); }
+        .plyr__menu__container .plyr__control[role="menuitemradio"][aria-checked="true"]::before { background: var(--accent-rose); }
+
+        .aspect-dropdown { position: absolute; bottom: calc(100% + 10px); right: 0; min-width: 180px; background: var(--bg-glass-dark); backdrop-filter: blur(20px); border: 1px solid var(--border-normal); border-radius: 8px; padding: 0.5rem; opacity: 0; visibility: hidden; transform: translateY(10px); transition: all 0.2s; z-index: 1000; }
+        .aspect-dropdown.active { opacity: 1; visibility: visible; transform: translateY(0); }
+        .aspect-item { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 0.8125rem; transition: all 0.2s; }
+        .aspect-item:hover { background: rgba(244, 63, 94, 0.1); color: var(--accent-rose); }
+        .aspect-item.active { background: rgba(244, 63, 94, 0.2); color: var(--accent-rose); }
+
         @media (max-width: 768px) {
-            .header-content {
-                padding: 1rem;
-            }
-            .nav {
-                display: none;
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                background: var(--bg-secondary);
-                flex-direction: column;
-                padding: 1rem;
-                gap: 1rem;
-                border-bottom: 1px solid var(--border-light);
-                z-index: 999;
-                animation: slideDown 0.3s ease-out;
-            }
-            .nav.active {
-                display: flex;
-            }
-            @keyframes slideDown {
-                from { opacity: 0; transform: translateY(-10px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-            .mobile-menu {
-                display: block;
-            }
-            .hero {
-                padding: 3rem 1rem 1rem;
-            }
-            .hero-title {
-                font-size: 2rem;
-            }
-            .hero-subtitle {
-                font-size: 1rem;
-            }
-            .main-container {
-                padding: 1rem;
-            }
-            .info-section {
-                padding: 1.5rem;
-            }
-            .file-title {
-                font-size: 1.5rem;
-            }
-            .actions {
-                flex-direction: column;
-            }
-            .btn, .dropdown {
-                flex: 1 1 auto;
-                max-width: none;
-            }
-            .dropdown-menu {
-                position: static;
-                transform: none;
-                opacity: 1;
-                visibility: visible;
-                display: none;
-            }
-            .dropdown-menu.active {
-                display: block;
-            }
-            .cards-grid {
-                grid-template-columns: 1fr;
-            }
-            .explore-section {
-                margin-top: 3rem;
-            }
+            .nav { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-glass-dark); flex-direction: column; padding: 1rem; gap: 1rem; border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(20px); z-index: 999; animation: slideDown 0.3s ease-out; }
+            .nav.active { display: flex; }
+            @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+            .mobile-menu { display: block; }
+            .slogan { padding: 5rem 1rem 0.5rem; font-size: 0.9rem; }
+            .container { padding: 1rem 1rem 2rem; }
+            .player-wrapper { margin-bottom: 2rem; }
+            .info-card { padding: 1.5rem; margin-bottom: 2rem; }
+            .file-title { font-size: 1.2rem; margin-bottom: 0.75rem; }
+            .cards-section { margin-top: 5rem !important; }
+            .file-meta { margin-bottom: 1.5rem; }
+            .actions { grid-template-columns: 1fr; gap: 0.75rem; }
+            .actions .dropdown { width: 100%; display: flex; }
+            .actions .dropdown .btn { width: 100%; justify-content: center; }
+            .actions .dropdown-menu { width: 100%; min-width: 250px; left: 50%; transform: translateX(-50%) translateY(10px); z-index: 1001; }
+            .actions .dropdown-menu.active { transform: translateX(-50%) translateY(0); }
+            .btn { padding: 0.5rem 0.75rem; font-size: 0.85rem; }
+            .audio-warning { font-size: 0.6rem; padding: 8px 12px; margin: 1rem 0; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .plyr__controls { padding-left: 5px; padding-right: 5px; }
+            .plyr__control { padding: 5px; }
+            .plyr__control[data-plyr="pip"], .plyr__control[data-plyr="airplay"] { display: none; }
+            .plyr__progress__container { flex: 1; min-width: 100px; }
+            .plyr__progress input[type="range"] { height: 12px !important; touch-action: manipulation; }
+            .plyr__volume { display: none !important; }
+            @media (max-width: 380px) { .plyr__time { display: none; } }
+            .aspect-dropdown { min-width: 120px; bottom: calc(100% + 5px); max-height: 50vh; overflow-y: auto; }
+            .aspect-item { padding: 0.3rem 0.5rem; font-size: 0.65rem; }
+            .aspect-item svg { width: 12px; height: 12px; }
+            .volume-popup { height: 100px; width: 28px; bottom: calc(100% + 5px); }
+            .volume-percent { font-size: 0.65rem; }
+            .volume-slider-container { height: 80px; }
+            .volume-slider { width: 80px !important; margin-top: 38px !important; }
         }
+
+        button[data-plyr="volume-custom"] { display: flex !important; align-items: center; justify-content: center; height: auto; position: relative; }
+        .audio-warning { position: static; background: transparent; color: rgb(251, 191, 36); padding: 12px 16px; border-radius: 8px; font-size: 0.875rem; font-weight: 500; display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 1.5rem 0; text-align: center; }
+        .audio-warning svg { margin-top: 3px; }
+        .volume-popup { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); width: 32px; height: 120px; background: var(--bg-glass-dark); backdrop-filter: blur(20px); border: 1px solid var(--border-normal); border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 10px 0; opacity: 0; visibility: hidden; transition: all 0.2s; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); z-index: 1000; }
+        .volume-popup.active { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        .volume-slider-container { width: 100%; height: 100px; display: flex; justify-content: center; position: relative; }
+        .volume-slider { -webkit-appearance: none; appearance: none; width: 100px !important; flex-shrink: 0; height: 4px !important; background: rgba(255, 255, 255, 0.2); border-radius: 2px; outline: none; transform: rotate(-90deg); transform-origin: center; cursor: pointer; margin-top: 48px !important; padding: 0 !important; }
+        .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--accent-rose); border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px rgba(244, 63, 94, 0.5); }
+        .volume-percent { position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 600; color: white; background: var(--accent-rose); padding: 2px 5px; border-radius: 4px; pointer-events: none; white-space: nowrap; }
+        .plyr__volume { display: none !important; }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-secondary); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-rose); }
+        html { scroll-behavior: smooth; scroll-padding-top: 70px; }
     </style>
 </head>
-<body {{BODY_CLASS}}>
+<body>
+
     <header class="header">
         <div class="header-content">
-            <a href="https://t.me/THEUPDATEDGUYS" class="logo">THE UPDATED GUYS</a>
+            <a href="https://t.me/THEUPDATEDGUYS" class="logo"> THE UPDATED GUYS </a>
             <nav class="nav">
-                <a href="#player-section">Stream</a>
-                <a href="#explore-section">Explore</a>
+                <a href="#video-section">Stream</a>
+                <a href="#explore">Explore</a>
                 <a href="https://t.me/THEUPDATEDGUYS">Contact</a>
             </nav>
             <button class="mobile-menu">
@@ -585,85 +232,89 @@ HTML_TEMPLATE = r"""
         </div>
     </header>
 
-    <section class="hero">
-        <h1 class="hero-title">Stream Effortlessly</h1>
-        <p class="hero-subtitle">Anytime, Anywhere with Premium Quality</p>
-    </section>
+    <div class="slogan">
+        <span class="slogan-text">Stream Effortlessly,</span> <span class="slogan-highlight">Anytime, Anywhere</span>
+    </div>
 
-    <main class="main-container">
-        <section id="player-section" class="player-section fade-in">
+    <div class="container">
+        <section id="video-section" class="fade-in">
             <div class="player-wrapper">
                 <div class="video-container">
-                    {{ADDITIONAL_HTML}}
-                    {{PLAYER_ELEMENT}}
+                    <video id="player" class="mkv-player" playsinline controls>
+                        <source src="{{STREAM_URL}}" />
+                    </video>
                 </div>
             </div>
-        </section>
 
-        <section class="info-section fade-in">
-            <h1 class="file-title">{{FILE_NAME}}</h1>
-            <div class="file-meta">
-                <span class="meta-tag">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    Now {{PLAY_STATUS}}
-                </span>
-            </div>
-            <div class="actions">
-                <button class="btn btn-primary" onclick="blazeDownload()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    Download Original
-                </button>
-                <button class="btn btn-secondary" onclick="vlc_player()">
-                    <img src="https://i.postimg.cc/15TQ4y7B/vlc.png" alt="VLC">
-                    VLC Player
-                </button>
-                <button class="btn btn-secondary" onclick="mx_player()">
-                    <img src="https://i.postimg.cc/sx4Msv4T/mx.png" alt="MX">
-                    MX Player
-                </button>
-                <div class="dropdown">
-                    <button class="btn btn-secondary" onclick="toggleDropdown(this)">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="1"></circle>
-                            <circle cx="19" cy="12" r="1"></circle>
-                            <circle cx="5" cy="12" r="1"></circle>
+            <div class="info-card">
+                <h1 class="file-title">{{FILE_NAME}}</h1>
+                <div class="file-meta">
+                    <span class="meta-tag">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
-                        More Players
+                        Now Streaming
+                    </span>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-primary" onclick="blazeDownload()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download Original
                     </button>
-                    <div class="dropdown-menu" id="players-dropdown">
-                        <div class="dropdown-grid">
-                            <a href="#" class="player-link" onclick="playit_player(); event.preventDefault();">
-                                <img src="https://i.postimg.cc/RVGWYJFF/playit.png" alt="PLAYit">
-                                PLAYit
-                            </a>
-                            <a href="#" class="player-link" onclick="km_player(); event.preventDefault();">
-                                <img src="https://i.postimg.cc/wT9tFQ9Z/km.png" alt="KM">
-                                KMPlayer
-                            </a>
-                            <a href="#" class="player-link" onclick="s_player(); event.preventDefault();">
-                                <img src="https://i.postimg.cc/XYJr6NGg/s.png" alt="S">
-                                S Player
-                            </a>
-                            <a href="#" class="player-link" onclick="hd_player(); event.preventDefault();">
-                                <img src="https://i.postimg.cc/rFT43LNh/hd.png" alt="HD">
-                                HD Player
-                            </a>
+                    <button class="btn" onclick="vlc_player()">
+                        <img src="https://i.postimg.cc/15TQ4y7B/vlc.png" alt="VLC" />
+                        VLC Player
+                    </button>
+                    <button class="btn" onclick="mx_player()">
+                        <img src="https://i.postimg.cc/sx4Msv4T/mx.png" alt="MX" />
+                        MX Player
+                    </button>
+
+                    <div class="dropdown">
+                        <button class="btn" onclick="toggleDropdown()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="1"></circle>
+                                <circle cx="19" cy="12" r="1"></circle>
+                                <circle cx="5" cy="12" r="1"></circle>
+                            </svg>
+                            More Players
+                        </button>
+                        <div class="dropdown-menu" id="players-dropdown">
+                            <div class="dropdown-grid">
+                                <a href="#" class="player-link" onclick="playit_player()">
+                                    <img src="https://i.postimg.cc/RVGWYJFF/playit.png" alt="PLAYit" />
+                                    <span>PLAYit</span>
+                                </a>
+                                <a href="#" class="player-link" onclick="km_player()">
+                                    <img src="https://i.postimg.cc/wT9tFQ9Z/km.png" alt="KM" />
+                                    <span>KMPlayer</span>
+                                </a>
+                                <a href="#" class="player-link" onclick="s_player()">
+                                    <img src="https://i.postimg.cc/XYJr6NGg/s.png" alt="S" />
+                                    <span>S Player</span>
+                                </a>
+                                <a href="#" class="player-link" onclick="hd_player()">
+                                    <img src="https://i.postimg.cc/rFT43LNh/hd.png" alt="HD" />
+                                    <span>HD Player</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="explore-section" class="explore-section fade-in">
-            <h2 class="section-title">Explore Our Universe</h2>
-            <p class="section-subtitle">Discover channels and bots for enhanced experience</p>
+        <section id="explore" class="cards-section">
+            <div class="section-header">
+                <h2 class="section-title">Explore Our Universe</h2>
+                <p class="section-subtitle">Discover our channels and intelligent bots</p>
+            </div>
             <div class="cards-grid">
                 <div class="card">
                     <div class="card-icon">
@@ -675,14 +326,13 @@ HTML_TEMPLATE = r"""
                         </svg>
                     </div>
                     <h3>Our Channels</h3>
-                    <p>Get exclusive content and real-time updates from our premium channels.</p>
-                    <a href="https://t.me/THEUPDATEDGUYS" class="card-link">
-                        The Updated Guys
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                            <polyline points="12 5 19 12 12 19"></polyline>
-                        </svg>
-                    </a>
+                    <p>Get exclusive content and real-time notifications from our premium channels</p>
+                    <div class="card-links">
+                        <a href="https://t.me/THEUPDATEDGUYS" class="card-link">
+                            <span>The Updated Guys</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        </a>
+                    </div>
                 </div>
                 <div class="card">
                     <div class="card-icon">
@@ -692,138 +342,76 @@ HTML_TEMPLATE = r"""
                         </svg>
                     </div>
                     <h3>Our Bots</h3>
-                    <p>Intelligent bots for seamless streaming and automation.</p>
-                    <a href="https://t.me/THEUPDATEDGUYS" class="card-link">
-                        Titanium Engine
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                            <polyline points="12 5 19 12 12 19"></polyline>
-                        </svg>
-                    </a>
+                    <p>Intelligent bots for enhanced streaming and automated assistance</p>
+                    <div class="card-links">
+                        <a href="https://t.me/THEUPDATEDGUYS" class="card-link">
+                            <span>Titanium Engine</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        </a>
+                    </div>
                 </div>
             </div>
         </section>
-    </main>
+    </div>
 
     <footer class="footer">
         <p>&copy; 2026 <a href="https://t.me/THEUPDATEDGUYS">THE UPDATED GUYS</a>. All Rights Reserved.</p>
     </footer>
 
-    <script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
-    {{ADDITIONAL_SCRIPT_SRC}}
+    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Bharathboy/utils@main/jsmkv-polyfill.js"></script>
 
     <script>
-        let originalAspect = '56.25%';
         function initPlayer() {
-            const playerEl = document.getElementById('player');
-            if (!playerEl) return;
-
-            const player = videojs('player', {
-                controls: true,
-                autoplay: false,
-                preload: 'auto',
-                fluid: false,
-                aspectRatio: '16:9',
-                sources: [{
-                    src: '{{STREAM_URL}}',
-                    type: '{{MIME_TYPE}}'
-                }]
-            });
-
-            player.on('loadedmetadata', function() {
-                originalAspect = (player.videoHeight() / player.videoWidth() * 100) + '%';
-            });
-
-            // Aspect Button
-            const AspectButton = videojs.getComponent('Button');
-            class CustomAspectButton extends AspectButton {
-                constructor(player, options) {
-                    super(player, options);
-                    this.addClass('vjs-aspect-button');
-                    this.controlText('Aspect Ratio');
-                    this.el().innerHTML += '<i data-lucide="monitor"></i>';
-                }
-                handleClick() {
-                    document.querySelector('.aspect-dropdown')?.classList.toggle('active');
-                }
+            const video = document.querySelector("#player");
+            if (!video) return;
+            const url = "{{STREAM_URL}}";
+            const ext = "{{FILE_NAME}}".split('.').pop().toLowerCase();
+            
+            if (ext === "mkv" && document.querySelector('script[src*="jsmkv"]')) {
+                video.classList.add("mkv-player");
+                setTimeout(() => initPlyr(video), 100);
+            } else if (["flv", "ts"].includes(ext) && typeof mpegts !== "undefined") {
+                initMpegts(video, url);
+            } else {
+                setTimeout(() => initPlyr(video), 100);
             }
-            videojs.registerComponent('CustomAspectButton', CustomAspectButton);
-            player.controlBar.addChild('CustomAspectButton', {}, player.controlBar.children().length - 2);
-
-            // Theater Button
-            class CustomTheaterButton extends AspectButton {
-                constructor(player, options) {
-                    super(player, options);
-                    this.addClass('vjs-theater-button');
-                    this.controlText('Theater Mode');
-                    this.el().innerHTML += '<i data-lucide="theater"></i>';
-                }
-                handleClick() {
-                    document.body.classList.toggle('theater-mode');
-                }
-            }
-            videojs.registerComponent('CustomTheaterButton', CustomTheaterButton);
-            player.controlBar.addChild('CustomTheaterButton', {}, player.controlBar.children().length - 2);
-
-            // Aspect Logic
-            const aspectDropdown = document.querySelector('.aspect-dropdown');
-            if (aspectDropdown) {
-                aspectDropdown.classList.add('aspect-dropdown');
-                player.el().appendChild(aspectDropdown);
-            }
-            document.querySelectorAll('.aspect-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const aspect = item.dataset.aspect;
-                    const container = document.querySelector('.video-container');
-                    const videoEl = playerEl;
-                    let padding = '56.25%';
-                    let objectFit = 'contain';
-                    switch (aspect) {
-                        case 'original':
-                            padding = originalAspect;
-                            break;
-                        case '16:9':
-                            padding = '56.25%';
-                            break;
-                        case '4:3':
-                            padding = '75%';
-                            break;
-                        case 'fill':
-                            padding = originalAspect;
-                            objectFit = 'fill';
-                            break;
-                        case 'cover':
-                            padding = originalAspect;
-                            objectFit = 'cover';
-                            break;
-                    }
-                    container.style.paddingBottom = padding;
-                    videoEl.style.objectFit = objectFit;
-                    document.querySelector('.aspect-item.active')?.classList.remove('active');
-                    item.classList.add('active');
-                    aspectDropdown?.classList.remove('active');
-                });
-            });
-
-            lucide.createIcons();
-            {{ADDITIONAL_INIT_SCRIPT}}
         }
 
-        function toggleDropdown(button) {
-            const menu = button.nextElementSibling;
-            menu.classList.toggle('active');
+        function initPlyr(video) {
+            if (window.plyrPlayer) return;
+            window.plyrPlayer = new Plyr(video, {
+                controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "pip", "fullscreen"],
+            });
+        }
+
+        function initMpegts(video, url) {
+            try {
+                const player = mpegts.createPlayer({ type: "flv", url, isLive: false });
+                player.attachMediaElement(video);
+                player.load();
+                window.mpegtsPlayer = player;
+                initPlyr(video);
+            } catch (err) {
+                initPlyr(video);
+            }
+        }
+
+        function toggleDropdown() {
+            document.getElementById("players-dropdown").classList.toggle("active");
         }
 
         function blazeDownload() {
-            const a = document.createElement('a');
-            a.href = '{{DL_URL}}';
-            a.download = '{{FILE_NAME}}';
+            const a = document.createElement("a");
+            a.href = "{{DL_URL}}";
+            a.download = "{{FILE_NAME}}";
             a.click();
         }
 
         function vlc_player() {
-            const url = '{{STREAM_URL}}';
-            const stripped = url.replace(/^https?:\/\//, '');
+            const url = "{{STREAM_URL}}";
+            const stripped = url.replace(/^https?:\/\//, "");
             window.location.href = `vlc://${stripped}`;
             setTimeout(() => {
                 window.location.href = `intent:${url}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end`;
@@ -831,47 +419,40 @@ HTML_TEMPLATE = r"""
         }
 
         function mx_player() {
-            window.location.href = `intent:{{STREAM_URL}}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end`;
+            window.location.href = "intent:{{STREAM_URL}}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end";
         }
 
         function playit_player() {
-            window.location.href = `playit://playerv2/video?url={{STREAM_URL}}`;
+            window.location.href = "playit://playerv2/video?url={{STREAM_URL}}";
         }
 
         function km_player() {
-            window.location.href = `intent:{{STREAM_URL}}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.kmplayer;end`;
+            window.location.href = "intent:{{STREAM_URL}}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.kmplayer;end";
         }
 
         function s_player() {
-            window.location.href = `intent:{{STREAM_URL}}#Intent;action=com.young.simple.player.playback_online;package=com.young.simple.player;end`;
+            window.location.href = "intent:{{STREAM_URL}}#Intent;action=com.young.simple.player.playback_online;package=com.young.simple.player;end";
         }
 
         function hd_player() {
-            window.location.href = `intent:{{STREAM_URL}}#Intent;action=android.intent.action.VIEW;type=video/*;package=uplayer.video.player;end`;
+            window.location.href = "intent:{{STREAM_URL}}#Intent;action=android.intent.action.VIEW;type=video/*;package=uplayer.video.player;end";
         }
 
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.dropdown .btn')) {
-                document.querySelectorAll('.dropdown-menu.active').forEach(menu => menu.classList.remove('active'));
-            }
-            if (!e.target.closest('.vjs-aspect-button')) {
-                document.querySelector('.aspect-dropdown')?.classList.remove('active');
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".dropdown")) {
+                const pd = document.getElementById("players-dropdown");
+                if (pd) pd.classList.remove("active");
             }
         });
 
-        document.querySelector('.mobile-menu')?.addEventListener('click', () => {
-            document.querySelector('.nav').classList.toggle('active');
-        });
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initPlayer);
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initPlayer);
         } else {
             initPlayer();
         }
     </script>
 </body>
-</html>
-"""
+</html>"""
 
 # 🟢 Keep-Alive Route
 @routes.get('/')
@@ -889,61 +470,15 @@ async def watch_page(request):
     
     file_name = link_data.get('file_name', 'Unknown_Video.mp4')
     domain = get_domain(request)
-    dl_url = f"{domain}/dl/{hash_id}"
     
-    ext = file_name.split('.')[-1].lower()
-    is_audio = ext in ['mp3', 'wav', 'ogg', 'm4a']
-    
-    # 🔥 FIX: Route perfectly back to our MTProto Turbo Streamer
+    # 🔥 FIX: Route perfectly back to our pure MTProto Turbo Streamer instead of local HLS
     stream_url = f"{domain}/stream/{hash_id}"
-    
-    if not is_audio:
-        mime_type = 'video/mp4' # Browsers like video/mp4 even for mkv raw byte streams
-        player_element = '<video id="player" class="video-js vjs-big-play-centered" playsinline preload="auto"></video>'
-        additional_head = ''
-        additional_html = '<div class="aspect-dropdown"><div class="aspect-item" data-aspect="original">Original</div><div class="aspect-item" data-aspect="16:9">16:9</div><div class="aspect-item" data-aspect="4:3">4:3</div><div class="aspect-item" data-aspect="fill">Fill</div><div class="aspect-item" data-aspect="cover">Cover</div></div>'
-        additional_script_src = ''
-        additional_init_script = ''
-        body_class = ''
-        play_status = 'Streaming'
-    else:
-        mime_type = f'audio/{ext}' 
-        player_element = '<audio id="player" class="video-js" playsinline preload="auto"></audio>'
-        additional_head = ''
-        additional_html = '<div id="waveform"></div>'
-        additional_script_src = '<script src="https://unpkg.com/wavesurfer.js@latest/dist/wavesurfer.min.js"></script>'
-        additional_init_script = """
-            const waveSurfer = WaveSurfer.create({
-                container: '#waveform',
-                waveColor: 'var(--accent-primary)',
-                progressColor: 'var(--accent-secondary)',
-                cursorColor: 'var(--text-primary)',
-                height: 128,
-                barWidth: 3,
-                barRadius: 3,
-                responsive: true,
-                normalize: true
-            });
-            waveSurfer.load('{{STREAM_URL}}');
-            waveSurfer.on('ready', () => {
-                player.on('play', () => waveSurfer.play());
-                player.on('pause', () => waveSurfer.pause());
-            });
-        """
-        body_class = 'class="is-audio"'
-        play_status = 'Playing Audio'
+    dl_url = f"{domain}/dl/{hash_id}"
 
+    # Safely inject the variables
     html = HTML_TEMPLATE.replace('{{FILE_NAME}}', file_name) \
                         .replace('{{STREAM_URL}}', stream_url) \
-                        .replace('{{DL_URL}}', dl_url) \
-                        .replace('{{MIME_TYPE}}', mime_type) \
-                        .replace('{{ADDITIONAL_HEAD}}', additional_head) \
-                        .replace('{{ADDITIONAL_HTML}}', additional_html) \
-                        .replace('{{PLAYER_ELEMENT}}', player_element) \
-                        .replace('{{ADDITIONAL_SCRIPT_SRC}}', additional_script_src) \
-                        .replace('{{ADDITIONAL_INIT_SCRIPT}}', additional_init_script) \
-                        .replace('{{BODY_CLASS}}', body_class) \
-                        .replace('{{PLAY_STATUS}}', play_status)
+                        .replace('{{DL_URL}}', dl_url)
 
     return web.Response(text=html, content_type='text/html')
 

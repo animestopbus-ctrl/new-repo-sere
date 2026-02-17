@@ -4,8 +4,9 @@ from aiohttp import web
 from pyrogram import Client
 import secret
 from database.db import db
+from filetolink.fast import ParallelStreamer # 🔥 Import the Turbo Engine
 
-# 🔥 Initialize the Pyrogram MTProto Client!
+# Initialize the Pyrogram MTProto Client
 pyro_client = Client(
     "titanium_mtproto",
     api_id=secret.API_ID,
@@ -22,7 +23,6 @@ async def handle_stream(request):
         return web.Response(text="❌ 404 - Link Expired or Invalid", status=404)
     
     try:
-        # Fetch the exact message from Telegram using MTProto
         message = await pyro_client.get_messages(link_data['chat_id'], link_data['message_id'])
         if not message or message.empty:
             return web.Response(text="❌ File not found on Telegram servers.", status=404)
@@ -36,7 +36,6 @@ async def handle_stream(request):
         offset = 0
         limit = file_size - 1
 
-        # 🔥 Handle Byte-Range requests for video players
         range_header = request.headers.get('Range')
         if range_header:
             match = re.match(r'bytes=(\d+)-(\d*)', range_header)
@@ -45,7 +44,6 @@ async def handle_stream(request):
                 if match.group(2):
                     limit = int(match.group(2))
 
-        # Failsafe if browser asks for bytes outside the file
         if offset >= file_size:
             return web.Response(status=416, headers={'Content-Range': f'bytes */{file_size}'})
 
@@ -62,30 +60,15 @@ async def handle_stream(request):
         response = web.StreamResponse(status=206 if range_header else 200, headers=headers)
         await response.prepare(request)
 
-        # 🚀 PYROGRAM CHUNK MATH FIX (Converts Bytes to 1MB Telegram Chunks)
-        chunk_size = 1024 * 1024
-        first_chunk_no = offset // chunk_size
-        first_part_cut = offset % chunk_size
-        bytes_to_send = req_length
-
-        async for chunk in pyro_client.stream_media(message, offset=first_chunk_no):
-            # Cut off the unrequested bytes from the first chunk
-            if first_part_cut:
-                chunk = chunk[first_part_cut:]
-                first_part_cut = 0
-                
-            # Stop sending if we have fulfilled the requested length
-            if len(chunk) > bytes_to_send:
-                chunk = chunk[:bytes_to_send]
-                
+        # 🚀 ACTIVATING TURBO STREAMER (Using 5 parallel workers)
+        # Keeps buffering to an absolute zero
+        streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=5)
+        
+        async for chunk in streamer.generate():
             await response.write(chunk)
-            
-            bytes_to_send -= len(chunk)
-            if bytes_to_send <= 0:
-                break
                 
         return response
 
     except Exception as e:
         logging.error(f"Stream Error: {str(e)}")
-        return
+        return web.Response(status=500)

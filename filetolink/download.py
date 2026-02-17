@@ -1,5 +1,6 @@
 import re
 import logging
+import aiohttp
 from aiohttp import web
 from database.db import db
 from filetolink.stream import pyro_client
@@ -50,14 +51,21 @@ async def handle_download(request):
         response = web.StreamResponse(status=206 if range_header else 200, headers=headers)
         await response.prepare(request)
         
-        # 🚀 ACTIVATING 10GBPS MULTIPLEXER (15 Workers, 50MB Prefetch Buffer)
         streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=15, prefetch_mb=50)
         
-        async for chunk in streamer.generate():
-            await response.write(chunk)
+        # 🔥 FIX: Gracefully handle Download Managers pausing/resuming
+        try:
+            async for chunk in streamer.generate():
+                await response.write(chunk)
+        except (ConnectionResetError, aiohttp.ClientPayloadError, aiohttp.ClientDisconnectedError):
+            pass
+        except Exception as e:
+            if "closing transport" not in str(e) and "Connection lost" not in str(e):
+                logging.error(f"DL Write Error: {str(e)}")
                 
         return response
 
     except Exception as e:
-        logging.error(f"DL Error: {e}")
+        if "closing transport" not in str(e) and "Connection lost" not in str(e):
+            logging.error(f"DL Error: {str(e)}")
         return web.Response(status=500)

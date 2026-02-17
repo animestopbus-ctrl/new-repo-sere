@@ -11,16 +11,10 @@ from filetolink.stream import handle_stream
 
 routes = web.RouteTableDef()
 
-hls_processes = {}
-quality_configs = [
-    {"name": "360p", "scale": "640:-2", "b": "800k", "maxrate": "900k", "bufsize": "1200k", "bw": 1000000, "res": "640x360"},
-    {"name": "720p", "scale": "1280:-2", "b": "2800k", "maxrate": "3000k", "bufsize": "4200k", "bw": 3200000, "res": "1280x720"},
-    # Add more qualities if needed, e.g., 1080p
-]
-
 def get_domain(request):
-    """Detects if running on Render, Heroku, or Localhost"""
-    return os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", request.host_url)).rstrip('/')
+    """Safely detects if running on Render, Heroku, or Localhost in AIOHTTP"""
+    fallback = f"{request.scheme}://{request.host}"
+    return os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", fallback)).rstrip('/')
 
 # ================= THE ULTIMATE HTML UI =================
 HTML_TEMPLATE = """
@@ -312,8 +306,6 @@ HTML_TEMPLATE = """
     </footer>
 
     <script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
-    <script src="https://unpkg.com/videojs-contrib-quality-levels@4.1.0/dist/videojs-contrib-quality-levels.min.js"></script>
-    <script src="https://unpkg.com/videojs-hls-quality-selector@4.0.0/dist/videojs-hls-quality-selector.min.js"></script>
 
     <script>
         let originalPadding = '56.25%';
@@ -330,20 +322,8 @@ HTML_TEMPLATE = """
                 aspectRatio: '16:9',
                 sources: [{
                     src: '{{STREAM_URL}}',
-                    type: 'application/x-mpegURL'
-                }],
-                html5: {
-                    vhs: {
-                        overrideNative: true
-                    },
-                    nativeAudioTracks: false,
-                    nativeVideoTracks: false
-                }
-            });
-
-            player.qualityLevels();
-            player.hlsQualitySelector({
-                displayCurrentQuality: true
+                    type: 'video/mp4' // Using raw MTProto Direct Stream
+                }]
             });
 
             player.on('loadedmetadata', function() {
@@ -381,7 +361,7 @@ HTML_TEMPLATE = """
             videojs.registerComponent('CustomTheaterButton', CustomTheaterButton);
             player.controlBar.addChild('CustomTheaterButton', {}, player.controlBar.children().length - 2);
 
-            // Aspect items
+            // Aspect items logic
             document.querySelectorAll('.aspect-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const aspect = item.getAttribute('data-aspect');
@@ -427,9 +407,10 @@ HTML_TEMPLATE = """
             a.click();
         }
 
+        // --- EXTERNAL PLAYERS (Uses direct raw URL for dual audio & 4K MKV) ---
         function vlc_player() {
             const url = "{{STREAM_URL}}";
-            const stripped = url.replace(/^https?:\\/\\//, "");
+            const stripped = url.replace(/^https?:\/\//, "");
             window.location.href = `vlc://${stripped}`;
             setTimeout(() => {
                 window.location.href = `intent:${url}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end`;
@@ -478,7 +459,7 @@ HTML_TEMPLATE = """
 async def alive(request):
     return web.Response(text="🟢 Titanium 4GB Modular Web Server is Online!")
 
-# 🎬 The Video Player Webpage (Injects UI Template)
+# 🎬 The Video Player Webpage
 @routes.get('/watch/{hash_id}')
 async def watch_page(request):
     hash_id = request.match_info['hash_id']
@@ -489,156 +470,15 @@ async def watch_page(request):
     
     file_name = link_data.get('file_name', 'Unknown_Video.mp4')
     domain = get_domain(request)
-    stream_url = f"{domain}/hls/{hash_id}/master.m3u8"
+    # 🔥 Using direct MTProto stream for highest speed & stability on Render
+    stream_url = f"{domain}/stream/{hash_id}"
     dl_url = f"{domain}/dl/{hash_id}"
 
-    # 🔥 SAFE INJECTION: Replaces variables without crashing on CSS brackets
     html = HTML_TEMPLATE.replace("{{FILE_NAME}}", file_name) \
                         .replace("{{STREAM_URL}}", stream_url) \
                         .replace("{{DL_URL}}", dl_url)
 
     return web.Response(text=html, content_type='text/html')
-
-async def get_media_info(file_path):
-    cmd = [
-        "ffprobe", "-v", "error",
-        "-show_entries", "stream=index,codec_type,codec_name,tags=language,title",
-        "-of", "json", file_path
-    ]
-    proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    stdout, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        logging.error(f"ffprobe failed: {stderr.decode()}")
-        return {"streams": []}
-    return json.loads(stdout.decode())
-
-# HLS Route
-@routes.get('/hls/{hash_id}/{file}')
-async def hls_route(request):
-    hash_id = request.match_info['hash_id']
-    file = request.match_info['file']
-    link_data = await db.get_link(hash_id)
-    
-    if not link_data:
-        return web.Response(status=404)
-    
-    file_path = link_data.get('file_path')
-    if not file_path or not os.path.exists(file_path):
-        return web.Response(status=404)
-    
-    dir_path = f"/tmp/hls/{hash_id}"
-    os.makedirs(dir_path, exist_ok=True)
-    
-    master_path = f"{dir_path}/master.m3u8"
-    
-    if hash_id not in hls_processes:
-        info = await get_media_info(file_path)
-        streams = info['streams']
-        
-        audio_streams = [s for s in streams if s['codec_type'] == 'audio']
-        sub_streams = [s for s in streams if s['codec_type'] == 'subtitle']
-        
-        processes = []
-        
-        # Audio processes
-        for i, stream in enumerate(audio_streams):
-            lang = stream.get('tags', {}).get('language', 'und')
-            cmd = [
-                "ffmpeg", "-y", "-i", file_path,
-                "-map", f"0:{stream['index']}",
-                "-c:a", "aac", "-b:a", "128k",
-                "-f", "hls",
-                "-hls_time", "4",
-                "-hls_playlist_type", "vod",
-                "-hls_flags", "independent_segments",
-                "-hls_segment_filename", f"{dir_path}/a{i}_%03d.ts",
-                f"{dir_path}/a{i}.m3u8"
-            ]
-            proc = await asyncio.create_subprocess_exec(*cmd)
-            processes.append(proc)
-        
-        # Subtitle processes
-        for i, stream in enumerate(sub_streams):
-            lang = stream.get('tags', {}).get('language', 'und')
-            cmd = [
-                "ffmpeg", "-y", "-i", file_path,
-                "-map", f"0:{stream['index']}",
-                "-c:s", "webvtt",
-                "-f", "hls",
-                "-hls_time", "4",
-                "-hls_playlist_type", "vod",
-                "-hls_flags", "independent_segments+single_file",
-                f"{dir_path}/s{i}.m3u8"
-            ]
-            proc = await asyncio.create_subprocess_exec(*cmd)
-            processes.append(proc)
-        
-        # Video processes for qualities
-        for j, q in enumerate(quality_configs):
-            cmd = [
-                "ffmpeg", "-y", "-i", file_path,
-                "-map", "0:v:0",
-                "-an", "-sn",
-                "-c:v", "libx264",
-                "-preset", "ultrafast",
-                "-tune", "zerolatency",
-                "-vf", f"scale={q['scale']},format=yuv420p",
-                "-b:v", q['b'],
-                "-maxrate", q['maxrate'],
-                "-bufsize", q['bufsize'],
-                "-g", "48",
-                "-keyint_min", "48",
-                "-f", "hls",
-                "-hls_time", "4",
-                "-hls_playlist_type", "vod",
-                "-hls_flags", "independent_segments",
-                "-hls_segment_filename", f"{dir_path}/{q['name']}_%03d.ts",
-                f"{dir_path}/{q['name']}.m3u8"
-            ]
-            proc = await asyncio.create_subprocess_exec(*cmd)
-            processes.append(proc)
-        
-        # Create master.m3u8
-        with open(master_path, 'w') as f:
-            f.write('#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-INDEPENDENT-SEGMENTS\n')
-            
-            # Audio media
-            if audio_streams:
-                for i, stream in enumerate(audio_streams):
-                    lang = stream.get('tags', {}).get('language', 'und')
-                    name = stream.get('tags', {}).get('title', f"Audio {i+1} ({lang.upper()})")
-                    default = 'YES' if i == 0 else 'NO'
-                    auto = 'YES' if i == 0 else 'NO'
-                    f.write(f'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="{name}",DEFAULT={default},AUTOSELECT={auto},LANGUAGE="{lang}",URI="a{i}.m3u8"\n')
-            
-            # Subtitles media
-            if sub_streams:
-                for i, stream in enumerate(sub_streams):
-                    lang = stream.get('tags', {}).get('language', 'und')
-                    name = stream.get('tags', {}).get('title', f"Subtitle {i+1} ({lang.upper()})")
-                    default = 'YES' if i == 0 else 'NO'
-                    auto = 'YES' if i == 0 else 'NO'
-                    f.write(f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{name}",DEFAULT={default},AUTOSELECT={auto},LANGUAGE="{lang}",URI="s{i}.m3u8"\n')
-            
-            # Streams
-            audio_group = ',AUDIO="audio"' if audio_streams else ''
-            subs_group = ',SUBTITLES="subs"' if sub_streams else ''
-            for q in quality_configs:
-                f.write(f'#EXT-X-STREAM-INF:BANDWIDTH={q["bw"]},AVERAGE-BANDWIDTH={q["bw"]-200000},RESOLUTION={q["res"]},FRAME-RATE=30,CODECS="avc1.4d401e,mp4a.40.2"{audio_group}{subs_group}\n{q["name"]}.m3u8\n')
-        
-        # Wait for all processes in background
-        hls_processes[hash_id] = processes
-        asyncio.create_task(wait_for_processes(processes))
-    
-    full_path = f"{dir_path}/{file}"
-    if not os.path.exists(full_path):
-        return web.Response(status=404)
-    
-    return web.FileResponse(full_path)
-
-async def wait_for_processes(processes):
-    for proc in processes:
-        await proc.wait()
 
 # 📥 Route Traffic to download.py
 @routes.get('/dl/{hash_id}')

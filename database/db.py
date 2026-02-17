@@ -23,11 +23,13 @@ class Database:
         except Exception as e:
             logger.error(f"TTL Index Error: {e}")
 
-    async def save_link(self, hash_id, file_id, file_name, size, expires_at):
+    # 🔥 UPDATED FOR 4GB MTPROTO: Added chat_id and message_id
+    async def save_link(self, hash_id, chat_id, message_id, file_name, size, expires_at):
         """Saves the encrypted link to the database."""
         await self.links.insert_one({
             "_id": hash_id, 
-            "file_id": file_id, 
+            "chat_id": chat_id, 
+            "message_id": message_id,
             "file_name": file_name,
             "size": size,
             "expires_at": expires_at

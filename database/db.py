@@ -10,9 +10,34 @@ class Database:
         self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
         self.db = self._client[database_name]
         self.col = self.db.users
-        self.settings = self.db.settings # New Global Settings DB
+        self.settings = self.db.settings # Global Settings DB
+        self.links = self.db.file_links  # 🔥 New File-to-Link Collection
         logger.info("✅ MongoDB Connected Successfully!")
 
+    # ================= FILE TO LINK ENGINE (SELF DESTRUCT) =================
+    async def setup_ttl_index(self):
+        """Creates the self-destruct index for links on startup."""
+        try:
+            await self.links.create_index("expires_at", expireAfterSeconds=0)
+            logger.info("⏳ MongoDB TTL Self-Destruct Index Ready!")
+        except Exception as e:
+            logger.error(f"TTL Index Error: {e}")
+
+    async def save_link(self, hash_id, file_id, file_name, size, expires_at):
+        """Saves the encrypted link to the database."""
+        await self.links.insert_one({
+            "_id": hash_id, 
+            "file_id": file_id, 
+            "file_name": file_name,
+            "size": size,
+            "expires_at": expires_at
+        })
+
+    async def get_link(self, hash_id):
+        """Retrieves link data if it hasn't expired yet."""
+        return await self.links.find_one({"_id": hash_id})
+
+    # ================= USER SYSTEM =================
     def new_user(self, id, name, username):
         return {
             'id': int(id),
@@ -82,7 +107,16 @@ class Database:
     async def del_caption(self, id):
         await self.col.update_one({'id': int(id)}, {'$unset': {'caption': ""}})
 
-    # ================= SYSTEM CONFIG (MAINTENANCE) =================
+    # ================= SYSTEM CONFIG (IMAGE & MAINTENANCE) =================
+    async def set_bot_image(self, url):
+        """Saves a custom /start and /panel URL to the global settings."""
+        await self.settings.update_one({"_id": "bot_image"}, {"$set": {"url": url}}, upsert=True)
+
+    async def get_bot_image(self):
+        """Retrieves the custom URL if it exists, otherwise returns None."""
+        doc = await self.settings.find_one({"_id": "bot_image"})
+        return doc.get("url") if doc else None
+
     async def get_maintenance(self):
         doc = await self.settings.find_one({"_id": "maintenance"})
         return doc.get("state", False) if doc else False

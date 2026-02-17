@@ -62,11 +62,11 @@ async def handle_stream(request):
 
         streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=15, prefetch_mb=20)
         
-        # 🔥 FIX: Gracefully handle the browser closing the connection after buffering
+        # 🔥 FIX: Removed the invalid aiohttp attribute and used standard Python network errors
         try:
             async for chunk in streamer.generate():
                 await response.write(chunk)
-        except (ConnectionResetError, aiohttp.ClientPayloadError, aiohttp.ClientDisconnectedError):
+        except (ConnectionResetError, aiohttp.ClientPayloadError):
             # Normal behavior: Browser got enough video and paused the connection
             pass
         except Exception as e:

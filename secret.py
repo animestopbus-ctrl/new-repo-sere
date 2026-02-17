@@ -23,7 +23,12 @@ WORKERS = int(os.getenv("WORKERS", "10"))
 WEB_URL = "https://new-repo-sere.onrender.com"
 
 EMOJIS = ["👍", "❤️", "🔥", "🥰", "👏", "🎉", "🤩", "🙏", "👌", "💯", "⚡", "🏆", "🤝", "🫡", "👨‍💻", "👀", "🐳"]
-MESSAGE_EFFECTS = ["5104841245755180586", "5044134455711629726", "5046509860389126442", "5107584321108051014"]
+MESSAGE_EFFECTS = [
+    "5104841245755180586", # 🔥 Fire
+    "5159385139981059251", # ❤️ Heart (NEW FIXED ID)
+    "5046509860389126442", # 🎉 Party
+    "5107584321108051014"  # 👍 Thumbs Up
+]
 
 LOADING_STICKERS = [
     "CAACAgUAAxkBAAEQLstpXRZxNxFMteYSkppBZ63fuBhVtQACFBgAAtDQQVbGUaezY8jttzgE",
@@ -46,4 +51,5 @@ LANG_MAP = {'hi': 'Hindi', 'en': 'English', 'ja': 'Japanese', 'ta': 'Tamil', 'te
 
 START_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n<b>Welcome, {name}! ⚡️</b>\n<blockquote>I am the most advanced Media AI on Telegram.</blockquote>\n\n<b>Core Capabilities:</b>\n├ 🎬 <b>Precision Extraction:</b> Pulls high-fidelity IMDb & TMDB data.\n├ ✨ <b>Smart Recognition:</b> Auto-detects Anime, K-Dramas, & Global Cinema.\n├ 🔊 <b>Deep Scanning:</b> Pinpoints exact audio languages & true pixel resolution.\n╰ 💎 <b>Artwork Preservation:</b> Retains pristine HD posters and media thumbnails."""
 HELP_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n<b>🛠️ HOW TO USE THE ENGINE</b>\n\n<blockquote>1️⃣ <b>Send or Forward</b> any raw movie, series, or anime file to me.\n2️⃣ I will aggressively strip out garbage tags from the file.\n3️⃣ The Omni-Search engine scans global databases for a match.\n4️⃣ I generate a beautiful layout and send the file back with HD thumbnails.</blockquote>"""
+
 

@@ -7,7 +7,6 @@ import time
 from telegram import BotCommand
 from telegram.constants import ParseMode 
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from telegram.error import Conflict
 
 import secret
 import script
@@ -39,6 +38,8 @@ async def startup_setup(app):
     await db.setup_ttl_index()
     await pyro_client.start()
     logging.info("✅ Pyrogram MTProto Client Started")
+    
+    # Start web server immediately so Render marks deploy as successful
     asyncio.create_task(start_web_server())
 
     if secret.LOG_CHANNEL_ID:
@@ -50,6 +51,12 @@ async def startup_setup(app):
 
 if __name__ == '__main__':
     print("🚀 TITANIUM 39.0 (4GB STREAMING ENGINE ONLINE).")
+    
+    # 🔥 FIX: Give Render 15 seconds to kill the old instance before polling!
+    if "RENDER" in os.environ:
+        print("⏳ Waiting 15 seconds for old Render instance to terminate to prevent Conflict...")
+        time.sleep(15)
+
     app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).concurrent_updates(True).post_init(startup_setup).build()
     
     app.add_handler(CommandHandler("start", script.start))
@@ -86,14 +93,4 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     
-    # 🔥 FIX: Unbreakable Polling Loop. If Render causes a Conflict, the bot waits and retries automatically!
-    while True:
-        try:
-            app.run_polling(drop_pending_updates=True)
-            break
-        except Conflict:
-            logging.warning("⚠️ Conflict detected. Render old instance still running. Retrying in 5 seconds...")
-            time.sleep(5)
-        except Exception as e:
-            logging.error(f"Polling error: {e}")
-            time.sleep(5)
+    app.run_polling(drop_pending_updates=True)

@@ -3,7 +3,7 @@ import logging
 from aiohttp import web
 from database.db import db
 from filetolink.stream import pyro_client
-from filetolink.fast import ParallelStreamer # 🔥 Import the Turbo Engine
+from filetolink.fast import ParallelStreamer # 🔥 Turbo Engine
 
 async def handle_download(request):
     hash_id = request.match_info['hash_id']
@@ -50,8 +50,8 @@ async def handle_download(request):
         response = web.StreamResponse(status=206 if range_header else 200, headers=headers)
         await response.prepare(request)
         
-        # 🚀 ACTIVATING TURBO DOWNLOADER (Using 5 parallel workers)
-        streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=5)
+        # 🚀 ACTIVATING 10GBPS MULTIPLEXER (15 Workers, 50MB Prefetch Buffer)
+        streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=15, prefetch_mb=50)
         
         async for chunk in streamer.generate():
             await response.write(chunk)

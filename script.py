@@ -19,8 +19,9 @@ from database.db import db
 import admin
 from filetolink import timer
 
-# 🔥 MULTI-PLATFORM DOMAIN DETECTOR (Render or Heroku)
-DOMAIN = os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", "https://your-bot-url.com")).rstrip('/')
+# 🔥 DYNAMIC DOMAIN ENGINE
+# Hardcoded to your Render URL for absolute stability
+DOMAIN = os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", "https://new-repo-sere.onrender.com")).rstrip('/')
 
 # ================= UTILITIES =================
 async def get_img():
@@ -189,6 +190,15 @@ def get_timer_markup():
         [InlineKeyboardButton("🕒 1 Hour", callback_data="timer_1", api_kwargs={"style": "primary"}), InlineKeyboardButton("🕒 6 Hours", callback_data="timer_6", api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("🕒 12 Hours", callback_data="timer_12", api_kwargs={"style": "primary"}), InlineKeyboardButton("🕒 24 Hours", callback_data="timer_24", api_kwargs={"style": "danger"})],
         [InlineKeyboardButton("⬅️ Cancel", callback_data="cancel_timer", api_kwargs={"style": "danger"})]
+    ])
+
+# 🔥 NEW: URL UI BUTTONS
+def get_url_markup(hash_id):
+    dl_url = f"{DOMAIN}/dl/{hash_id}"
+    watch_url = f"{DOMAIN}/watch/{hash_id}"
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🚀 FAST DOWNLOAD", url=dl_url, api_kwargs={"style": "primary"})],
+        [InlineKeyboardButton("🖥️ INSTANT STREAM", url=watch_url, api_kwargs={"style": "success"})]
     ])
 
 async def is_subscribed(user_id, context):
@@ -470,7 +480,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_name = getattr(media, 'file_name', 'Unknown') if media else 'Unknown'
         await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
 
-    # 🔥 3. FILE TO LINK: GENERATE HASH (4GB MTProto Logic)
+    # 🔥 3. FILE TO LINK: GENERATE HASH (UI BUTTON FIX)
     elif data.startswith("timer_"):
         hours = int(data.split("_")[1])
         media = query.message.document or query.message.video
@@ -483,7 +493,6 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_name = getattr(media, 'file_name', 'Unknown.mkv')
         size = format_size(getattr(media, 'file_size', 0))
         
-        # 🔥 CRITICAL: Saving Chat ID and Message ID for Pyrogram MTProto
         chat_id = query.message.chat.id
         message_id = query.message.message_id
         await db.save_link(file_hash, chat_id, message_id, file_name, size, expires_at)
@@ -494,13 +503,18 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<blockquote>🎬 <b>File:</b> <code>{esc(file_name)}</code>\n"
             f"💾 <b>Size:</b> <code>{esc(size)}</code>\n"
             f"⏳ <b>Valid For:</b> {hours} Hours</blockquote>\n\n"
-            f"🚀 <b>Fast Download:</b>\n<code>{DOMAIN}/dl/{file_hash}</code>\n\n"
-            f"🖥️ <b>Instant Stream:</b>\n<code>{DOMAIN}/watch/{file_hash}</code>\n\n"
             f"<i>⚠️ Do not share these links. They will auto-delete.</i>"
         )
         
         await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
-        await query.message.reply_text(link_text, parse_mode=ParseMode.HTML, disable_web_page_preview=True, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+        
+        # 🔥 FIX: No effect_id attached here, and buttons are generated properly!
+        await query.message.reply_text(
+            text=link_text, 
+            parse_mode=ParseMode.HTML, 
+            disable_web_page_preview=True,
+            reply_markup=get_url_markup(file_hash)
+        )
 
     # 4. STANDARD MENUS
     elif data == "help_menu":

@@ -164,7 +164,6 @@ def fetch_smart_metadata(title, year, original_filename, force_reverify=False):
         except: pass
     return data
 
-# 🔥 CRITICAL SHIELD: Protects the bot from crashing if Telegram rejects the Effect ID
 async def safe_reply(msg_obj, text, **kwargs):
     """Attempts to send message with effect. Falls back to normal text if Telegram rejects the effect ID."""
     try:
@@ -202,12 +201,14 @@ def get_timer_markup():
         [InlineKeyboardButton("⬅️ Cancel", callback_data="cancel_timer", api_kwargs={"style": "danger"})]
     ])
 
+# 🔥 CRITICAL FIX: Mini App Integration
 def get_url_markup(hash_id):
     dl_url = f"{DOMAIN}/dl/{hash_id}"
     watch_url = f"{DOMAIN}/watch/{hash_id}"
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🚀 FAST DOWNLOAD", url=dl_url)],
-        [InlineKeyboardButton("🖥️ INSTANT STREAM", url=watch_url)]
+        # The stream button now triggers a Telegram Web App inside the chat!
+        [InlineKeyboardButton("🖥️ INSTANT STREAM", web_app=WebAppInfo(url=watch_url))]
     ])
 
 async def is_subscribed(user_id, context):

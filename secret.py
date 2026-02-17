@@ -6,8 +6,8 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://LastPerson07:N7z0DRcklsZzqCzd@
 ADMIN_ID = int(os.getenv("ADMIN_ID", "1633472140"))
 
 # 🔥 REQUIRED FOR 4GB STREAMING (Get from my.telegram.org)
-API_ID = int(os.getenv("API_ID", "34857357")) # REPLACE WITH YOUR API ID
-API_HASH = os.getenv("API_HASH", "1e8f2a02989b22ef1e55340375bbdaa8") # REPLACE WITH YOUR API HASH
+API_ID = int(os.getenv("API_ID", "20601073")) # REPLACE WITH YOUR API ID
+API_HASH = os.getenv("API_HASH", "a99848cf240773df26d3efad8195c194") # REPLACE WITH YOUR API HASH
 
 LOG_CHANNEL_STR = os.getenv("LOG_CHANNEL_ID", "-1003144372708")
 try: LOG_CHANNEL_ID = int(LOG_CHANNEL_STR)
@@ -51,5 +51,6 @@ LANG_MAP = {'hi': 'Hindi', 'en': 'English', 'ja': 'Japanese', 'ta': 'Tamil', 'te
 
 START_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n<b>Welcome, {name}! ⚡️</b>\n<blockquote>I am the most advanced Media AI on Telegram.</blockquote>\n\n<b>Core Capabilities:</b>\n├ 🎬 <b>Precision Extraction:</b> Pulls high-fidelity IMDb & TMDB data.\n├ ✨ <b>Smart Recognition:</b> Auto-detects Anime, K-Dramas, & Global Cinema.\n├ 🔊 <b>Deep Scanning:</b> Pinpoints exact audio languages & true pixel resolution.\n╰ 💎 <b>Artwork Preservation:</b> Retains pristine HD posters and media thumbnails."""
 HELP_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n<b>🛠️ HOW TO USE THE ENGINE</b>\n\n<blockquote>1️⃣ <b>Send or Forward</b> any raw movie, series, or anime file to me.\n2️⃣ I will aggressively strip out garbage tags from the file.\n3️⃣ The Omni-Search engine scans global databases for a match.\n4️⃣ I generate a beautiful layout and send the file back with HD thumbnails.</blockquote>"""
+
 
 

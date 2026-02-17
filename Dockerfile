@@ -1,25 +1,25 @@
-# 1. Upgrade to Python 3.12 for better Async performance
+# 1. Use the official Python image
 FROM python:3.12-slim
 
 # 2. Set the working directory inside the container
 WORKDIR /app
 
-# 3. Set Timezone to IST so your logs and Database dates match your local time
-ENV TZ=Asia/Kolkata
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+# 🔥 3. CRITICAL FIX: Install 'gcc' and C-dependencies so TgCrypto can build successfully!
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# 4. Copy requirements first (Docker caches this step to make future deployments faster)
-COPY requirements.txt requirements.txt
+# 4. Copy the requirements file first (for caching)
+COPY requirements.txt .
 
-# 5. Upgrade pip to avoid build errors, then install your bot's libraries
+# 5. Upgrade pip and install all Python libraries
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 6. Copy all your modular bot files (bot.py, script.py, secret.py, database/, etc.)
+# 6. Copy the rest of your bot's code into the container
 COPY . .
 
-# 7. Document the port used by your keep_alive.py Flask server
-EXPOSE 8080
-
-# 8. Ignite the engine
+# 7. Start the bot
 CMD ["python", "bot.py"]

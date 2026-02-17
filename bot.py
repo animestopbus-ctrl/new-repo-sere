@@ -43,8 +43,8 @@ async def startup_setup(app):
     await pyro_client.start()
     logging.info("✅ Pyrogram MTProto Client Started")
 
-    # 3. Start the Web Server (Replaces keep_alive)
-    asyncio.create_task(start_web_server(app.bot))
+    # 3. 🔥 FIX: Start the Web Server without arguments
+    asyncio.create_task(start_web_server())
 
     if secret.LOG_CHANNEL_ID:
         try:

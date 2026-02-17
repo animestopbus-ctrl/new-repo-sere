@@ -4,9 +4,8 @@ from aiohttp import web
 from pyrogram import Client
 import secret
 from database.db import db
-from filetolink.fast import ParallelStreamer # 🔥 Import the Turbo Engine
+from filetolink.fast import ParallelStreamer # 🔥 Turbo Engine
 
-# Initialize the Pyrogram MTProto Client
 pyro_client = Client(
     "titanium_mtproto",
     api_id=secret.API_ID,
@@ -60,9 +59,8 @@ async def handle_stream(request):
         response = web.StreamResponse(status=206 if range_header else 200, headers=headers)
         await response.prepare(request)
 
-        # 🚀 ACTIVATING TURBO STREAMER (Using 5 parallel workers)
-        # Keeps buffering to an absolute zero
-        streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=5)
+        # 🚀 ACTIVATING 10GBPS MULTIPLEXER (15 Workers, 20MB Prefetch Buffer for instant video seeking)
+        streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=15, prefetch_mb=20)
         
         async for chunk in streamer.generate():
             await response.write(chunk)

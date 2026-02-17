@@ -5,3 +5,6 @@ requests
 motor
 Flask
 speedtest-cli
+fastapi
+uvicorn
+aiohttp

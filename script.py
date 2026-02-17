@@ -164,7 +164,7 @@ def fetch_smart_metadata(title, year, original_filename, force_reverify=False):
         except: pass
     return data
 
-# 🔥 CRITICAL FIX: Safe Reply wrapper for Message Effects
+# 🔥 CRITICAL SHIELD: Protects the bot from crashing if Telegram rejects the Effect ID
 async def safe_reply(msg_obj, text, **kwargs):
     """Attempts to send message with effect. Falls back to normal text if Telegram rejects the effect ID."""
     try:

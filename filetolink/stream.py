@@ -1,5 +1,6 @@
 import re
 import logging
+import aiohttp
 from aiohttp import web
 from pyrogram import Client
 import secret
@@ -59,14 +60,23 @@ async def handle_stream(request):
         response = web.StreamResponse(status=206 if range_header else 200, headers=headers)
         await response.prepare(request)
 
-        # 🚀 ACTIVATING 10GBPS MULTIPLEXER (15 Workers, 20MB Prefetch Buffer for instant video seeking)
         streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=15, prefetch_mb=20)
         
-        async for chunk in streamer.generate():
-            await response.write(chunk)
+        # 🔥 FIX: Gracefully handle the browser closing the connection after buffering
+        try:
+            async for chunk in streamer.generate():
+                await response.write(chunk)
+        except (ConnectionResetError, aiohttp.ClientPayloadError, aiohttp.ClientDisconnectedError):
+            # Normal behavior: Browser got enough video and paused the connection
+            pass
+        except Exception as e:
+            if "closing transport" not in str(e) and "Connection lost" not in str(e):
+                logging.error(f"Stream Write Error: {str(e)}")
                 
         return response
 
     except Exception as e:
-        logging.error(f"Stream Error: {str(e)}")
+        # Ignore false-positive transport errors
+        if "closing transport" not in str(e) and "Connection lost" not in str(e):
+            logging.error(f"Stream Error: {str(e)}")
         return web.Response(status=500)

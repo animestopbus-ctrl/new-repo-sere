@@ -535,3 +535,4 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "reverify":
         await query.answer("🔄 Deep Match Protocol...", show_alert=True)
         await handle_media(update, context, force_reverify=True)
+

@@ -164,6 +164,17 @@ def fetch_smart_metadata(title, year, original_filename, force_reverify=False):
         except: pass
     return data
 
+# 🔥 CRITICAL FIX: Safe Reply wrapper for Message Effects
+async def safe_reply(msg_obj, text, **kwargs):
+    """Attempts to send message with effect. Falls back to normal text if Telegram rejects the effect ID."""
+    try:
+        return await msg_obj.reply_text(text, **kwargs)
+    except BadRequest as e:
+        if "effect" in str(e).lower() or "invalid" in str(e).lower():
+            kwargs.pop('message_effect_id', None)
+            return await msg_obj.reply_text(text, **kwargs)
+        raise e
+
 # ================= KEYBOARDS & FSUB =================
 def get_main_menu_markup():
     return InlineKeyboardMarkup([
@@ -191,7 +202,6 @@ def get_timer_markup():
         [InlineKeyboardButton("⬅️ Cancel", callback_data="cancel_timer", api_kwargs={"style": "danger"})]
     ])
 
-# 🔥 NEW: STRICTLY URL BUTTONS (No api_kwargs to prevent Telegram crash)
 def get_url_markup(hash_id):
     dl_url = f"{DOMAIN}/dl/{hash_id}"
     watch_url = f"{DOMAIN}/watch/{hash_id}"
@@ -239,12 +249,14 @@ async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    await update.message.reply_text(f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>👤 <b>Your User ID:</b> <code>{update.effective_user.id}</code>\n💬 <b>Chat ID:</b> <code>{update.effective_chat.id}</code></blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>👤 <b>Your User ID:</b> <code>{update.effective_user.id}</code>\n💬 <b>Chat ID:</b> <code>{update.effective_chat.id}</code></blockquote>"
+    await safe_reply(update.message, text, parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    await update.message.reply_text(f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}</blockquote>"
+    await safe_reply(update.message, text, parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
@@ -252,13 +264,13 @@ async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except: pass
     try: await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
     except: pass
-    await update.message.reply_text("<b>Yes darling, I am alive. Don't worry! 😘</b>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    await safe_reply(update.message, "<b>Yes darling, I am alive. Don't worry! 😘</b>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    await update.message.reply_text("<b>🚀 Send me any Movie, Series, or Anime file and I will process it instantly!</b>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    await safe_reply(update.message, "<b>🚀 Send me any Movie, Series, or Anime file and I will process it instantly!</b>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
@@ -332,7 +344,7 @@ async def feedback_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_msg = f"📬 <b>NEW USER FEEDBACK</b>\n\n<blockquote>👤 <b>From:</b> {esc(user.first_name)} [<code>{user.id}</code>]\n💬 <b>Message:</b> {esc(feedback_text)}</blockquote>"
     try:
         await context.bot.send_message(chat_id=secret.ADMIN_ID, text=admin_msg, parse_mode=ParseMode.HTML)
-        await update.message.reply_text("✅ <b>Feedback Sent Successfully!</b>\n<blockquote>Thank you for helping us improve the engine.</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+        await safe_reply(update.message, "✅ <b>Feedback Sent Successfully!</b>\n<blockquote>Thank you for helping us improve the engine.</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     except Exception: await update.message.reply_text("❌ Failed to send feedback to the developer.", parse_mode=ParseMode.HTML)
 
 # ================= PREMIUM COMMANDS =================
@@ -344,19 +356,19 @@ async def set_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     custom_text = " ".join(context.args)
     if not custom_text: return await update.message.reply_text("❌ <b>Format:</b> <code>/set_caption Your custom text here</code>", parse_mode=ParseMode.HTML)
     await db.set_caption(user_id, custom_text)
-    await update.message.reply_text("✅ <b>SUCCESS:</b> Custom caption saved!\n<blockquote>It will now appear at the bottom of your files.</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    await safe_reply(update.message, "✅ <b>SUCCESS:</b> Custom caption saved!\n<blockquote>It will now appear at the bottom of your files.</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def del_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
     await db.del_caption(update.effective_user.id)
-    await update.message.reply_text("🗑️ Custom caption removed. Reverted to default.", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    await safe_reply(update.message, "🗑️ Custom caption removed. Reverted to default.", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def my_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
     cap = await db.get_caption(update.effective_user.id)
-    if cap: await update.message.reply_text(f"📝 <b>Your Custom Caption:</b>\n\n<blockquote>{cap}</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
+    if cap: await safe_reply(update.message, f"📝 <b>Your Custom Caption:</b>\n\n<blockquote>{cap}</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     else: await update.message.reply_text("You have no custom caption set. Using default.", parse_mode=ParseMode.HTML)
 
 # ================= MEDIA ENGINE =================
@@ -467,19 +479,16 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     img = await get_img()
 
-    # 🔥 1. FILE TO LINK: OPEN TIMER MENU
     if data == "ask_timer":
         media = query.message.document or query.message.video
         if not media: return await query.answer("❌ No file detected.", show_alert=True)
         await query.edit_message_reply_markup(reply_markup=get_timer_markup())
 
-    # 🔥 2. FILE TO LINK: CANCEL MENU
     elif data == "cancel_timer":
         media = query.message.document or query.message.video
         file_name = getattr(media, 'file_name', 'Unknown') if media else 'Unknown'
         await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
 
-    # 🔥 3. FILE TO LINK: GENERATE UI BUTTONS
     elif data.startswith("timer_"):
         hours = int(data.split("_")[1])
         media = query.message.document or query.message.video
@@ -496,7 +505,6 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_id = query.message.message_id
         await db.save_link(file_hash, chat_id, message_id, file_name, size, expires_at)
         
-        # CLEAN TEXT (No raw URLs inside the body)
         link_text = (
             f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n"
             f"✅ <b>LINKS GENERATED SUCCESSFULLY</b>\n\n"
@@ -506,17 +514,9 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<i>⚠️ Do not share these links. They will auto-delete.</i>"
         )
         
-        # Restore the original file's buttons
         await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
-        
-        # SEND THE URL BUTTONS
-        await query.message.reply_text(
-            text=link_text, 
-            parse_mode=ParseMode.HTML, 
-            reply_markup=get_url_markup(file_hash)
-        )
+        await safe_reply(query.message, text=link_text, parse_mode=ParseMode.HTML, reply_markup=get_url_markup(file_hash), disable_web_page_preview=True, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
-    # 4. STANDARD MENUS
     elif data == "help_menu":
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
         except BadRequest: pass

@@ -12,6 +12,7 @@ from keep_alive import keep_alive
 import secret
 import script
 import admin 
+from database.db import db # 🔥 Imported DB to trigger the TTL Index!
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
@@ -37,15 +38,18 @@ async def startup_setup(app):
     try: await app.bot.set_my_commands(menu_commands)
     except: pass
 
+    # 🔥 INITIALIZE SELF-DESTRUCT TIMER INDEX IN MONGODB
+    await db.setup_ttl_index()
+
     if secret.LOG_CHANNEL_ID:
         try:
-            msg = f"🚀 <b>BOT ENGINE INITIATED</b>\n\n<blockquote>🤖 <b>Bot Name:</b> @{app.bot.username}\n🌍 <b>Hosted On:</b> Render.com\n🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n⚙️ <b>Workers:</b> {secret.WORKERS} Active</blockquote>"
+            msg = f"🚀 <b>BOT ENGINE INITIATED</b>\n\n<blockquote>🤖 <b>Bot Name:</b> @{app.bot.username}\n🌍 <b>Hosted On:</b> Render.com\n🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n⚙️ <b>Workers:</b> {secret.WORKERS} Active\n⏳ <b>TTL Index:</b> Online</blockquote>"
             await app.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=msg, parse_mode=ParseMode.HTML, disable_notification=True)
         except: pass
 
 
 if __name__ == '__main__':
-    print("🚀 TITANIUM 37.1 (FULL REPAIR ONLINE).")
+    print("🚀 TITANIUM 39.0 (FILE-TO-LINK FOUNDATION ONLINE).")
     
     keep_alive()
     app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).concurrent_updates(True).post_init(startup_setup).build()

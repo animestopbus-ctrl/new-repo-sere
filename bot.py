@@ -42,6 +42,25 @@ async def startup_setup(app):
     # Start web server immediately so Render marks deploy as successful
     asyncio.create_task(start_web_server())
 
+    # 🔥 THE ULTIMATE CONFLICT FIX: Wait for the old Render instance to release the polling lock
+    import httpx
+    url = f"https://api.telegram.org/bot{secret.BOT_TOKEN}/getUpdates"
+    logging.info("⏳ Securing Telegram Polling Lock...")
+    while True:
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.get(url, timeout=5)
+                data = res.json()
+                if not data.get("ok") and data.get("error_code") == 409:
+                    logging.warning("⚠️ Conflict detected. Old Render instance still running. Waiting 5 seconds...")
+                    await asyncio.sleep(5)
+                else:
+                    logging.info("✅ Telegram Polling Lock Secured! Starting Bot Engine...")
+                    break
+        except Exception as e:
+            logging.error(f"Lock check error: {e}")
+            await asyncio.sleep(5)
+
     if secret.LOG_CHANNEL_ID:
         try:
             platform = "Heroku" if "WEB_URL" in os.environ else ("Render" if "RENDER" in os.environ else "Local")
@@ -52,11 +71,6 @@ async def startup_setup(app):
 if __name__ == '__main__':
     print("🚀 TITANIUM 39.0 (4GB STREAMING ENGINE ONLINE).")
     
-    # 🔥 FIX: Give Render 15 seconds to kill the old instance before polling!
-    if "RENDER" in os.environ:
-        print("⏳ Waiting 15 seconds for old Render instance to terminate to prevent Conflict...")
-        time.sleep(15)
-
     app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).concurrent_updates(True).post_init(startup_setup).build()
     
     app.add_handler(CommandHandler("start", script.start))
@@ -93,4 +107,4 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling()

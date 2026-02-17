@@ -2,7 +2,8 @@ import re
 import logging
 from aiohttp import web
 from database.db import db
-from filetolink.stream import pyro_client # Re-use the running Pyrogram client
+from filetolink.stream import pyro_client
+from filetolink.fast import ParallelStreamer # 🔥 Import the Turbo Engine
 
 async def handle_download(request):
     hash_id = request.match_info['hash_id']
@@ -25,7 +26,6 @@ async def handle_download(request):
         offset = 0
         limit = file_size - 1
 
-        # 🔥 Support for IDM and Resumable Downloads
         range_header = request.headers.get('Range')
         if range_header:
             match = re.match(r'bytes=(\d+)-(\d*)', range_header)
@@ -50,28 +50,14 @@ async def handle_download(request):
         response = web.StreamResponse(status=206 if range_header else 200, headers=headers)
         await response.prepare(request)
         
-        # 🚀 PYROGRAM CHUNK MATH
-        chunk_size = 1024 * 1024
-        first_chunk_no = offset // chunk_size
-        first_part_cut = offset % chunk_size
-        bytes_to_send = req_length
-
-        async for chunk in pyro_client.stream_media(message, offset=first_chunk_no):
-            if first_part_cut:
-                chunk = chunk[first_part_cut:]
-                first_part_cut = 0
-                
-            if len(chunk) > bytes_to_send:
-                chunk = chunk[:bytes_to_send]
-                
+        # 🚀 ACTIVATING TURBO DOWNLOADER (Using 5 parallel workers)
+        streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=5)
+        
+        async for chunk in streamer.generate():
             await response.write(chunk)
-            
-            bytes_to_send -= len(chunk)
-            if bytes_to_send <= 0:
-                break
                 
         return response
 
     except Exception as e:
         logging.error(f"DL Error: {e}")
-        return
+        return web.Response(status=500)

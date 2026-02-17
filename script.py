@@ -17,15 +17,13 @@ from telegram.error import BadRequest
 import secret
 from database.db import db
 import admin
-from filetolink import timer # 🔥 Imports your custom Timer Engine!
+from filetolink import timer
 
-# 🔥 DYNAMIC DOMAIN ENGINE (Supports Render, Heroku, and custom VPS)
-# Render auto-provides RENDER_EXTERNAL_URL. For Heroku, you just set WEB_URL in config vars!
+# 🔥 MULTI-PLATFORM DOMAIN DETECTOR (Render or Heroku)
 DOMAIN = os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", "https://your-bot-url.com")).rstrip('/')
 
 # ================= UTILITIES =================
 async def get_img():
-    """Pulls dynamic bot image from DB, or defaults to secret list."""
     db_img = await db.get_bot_image()
     return db_img if db_img else random.choice(secret.IMAGE_LINKS)
 
@@ -181,13 +179,12 @@ def get_help_menu_markup():
 def get_media_markup(title):
     imdb_url = f"https://www.imdb.com/find/?q={requests.utils.quote(title.replace(' ', '+'))}"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔗 Generate Direct Links", callback_data="ask_timer", api_kwargs={"style": "primary"})], # 🔥 NEW GENERATE LINK BUTTON
+        [InlineKeyboardButton("🔗 Generate Direct Links", callback_data="ask_timer", api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "primary"}), InlineKeyboardButton("🔄 RE-VERIFY", callback_data="reverify", api_kwargs={"style": "danger"})],
         [InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "success"})]
     ])
 
 def get_timer_markup():
-    """The Self-Destruct Selection Menu"""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🕒 1 Hour", callback_data="timer_1", api_kwargs={"style": "primary"}), InlineKeyboardButton("🕒 6 Hours", callback_data="timer_6", api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("🕒 12 Hours", callback_data="timer_12", api_kwargs={"style": "primary"}), InlineKeyboardButton("🕒 24 Hours", callback_data="timer_24", api_kwargs={"style": "danger"})],
@@ -257,7 +254,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     user = update.effective_user
-    
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
 
@@ -266,7 +262,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     is_new = await db.add_user(user.id, user.first_name, user.username)
     if is_new: await send_recon_log(user, context)
-    
     if not await is_subscribed(user.id, context):
         return await send_fsub_blocker(update.message)
     
@@ -297,7 +292,7 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 39.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
+    info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 39.0 Pro (MTProto 4GB Streaming)\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot & Pyrogram\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
     markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})]])
     img = await get_img()
     sent_msg = await update.message.reply_photo(photo=img, caption=info_text, parse_mode=ParseMode.HTML, reply_markup=markup)
@@ -312,8 +307,8 @@ async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user_data: return await update.message.reply_text("❌ Please send /start first to register your account.")
     is_prem = user_data.get('is_premium', False)
     status = "💎 PREMIUM VIP" if is_prem else "🆓 FREE TIER"
-    text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0)}/10 Files Processed\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0)} Files\n📝 <b>Custom Caption:</b> {esc(user_data.get('caption', 'None (Default)'))}</blockquote>\n\n<i>Use /set_caption to update your Premium caption.</i>"
-    markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})]])
+    text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0) if user_data else 0}/10 Files\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0) if user_data else 0} Files\n📝 <b>Caption:</b> {esc(user_data.get('caption', 'None (Default)') if user_data else 'None')}</blockquote>"
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
     img = await get_img()
     sent_msg = await update.message.reply_photo(photo=img, caption=text, parse_mode=ParseMode.HTML, reply_markup=markup)
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("⚙️"), is_big=True)
@@ -375,7 +370,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
     media = msg.document or msg.video
     if not media: return
 
-    # 🔥 START USER REACTION
     if update.message:
         try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
         except: pass
@@ -446,8 +440,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
             if "not modified" not in str(e).lower(): logging.error(f"Edit error: {e}")
     else:
         sent_msg = await context.bot.copy_message(chat_id=msg.chat.id, from_chat_id=msg.chat.id, message_id=msg.message_id, caption=caption, parse_mode=ParseMode.HTML, reply_markup=markup)
-        
-        # 🔥 DROP REACTION ON RENAMED FILE
         try: await context.bot.set_message_reaction(chat_id=msg.chat.id, message_id=sent_msg.message_id, reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
         except: pass
 
@@ -464,13 +456,12 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer() 
     data = query.data
-    
     img = await get_img()
 
     # 🔥 1. FILE TO LINK: OPEN TIMER MENU
     if data == "ask_timer":
         media = query.message.document or query.message.video
-        if not media: return await query.answer("❌ No file detected in this message.", show_alert=True)
+        if not media: return await query.answer("❌ No file detected.", show_alert=True)
         await query.edit_message_reply_markup(reply_markup=get_timer_markup())
 
     # 🔥 2. FILE TO LINK: CANCEL MENU
@@ -479,20 +470,23 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_name = getattr(media, 'file_name', 'Unknown') if media else 'Unknown'
         await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
 
-    # 🔥 3. FILE TO LINK: GENERATE THE HASH & SECURE URL
+    # 🔥 3. FILE TO LINK: GENERATE HASH (4GB MTProto Logic)
     elif data.startswith("timer_"):
         hours = int(data.split("_")[1])
         media = query.message.document or query.message.video
         if not media: return await query.answer("❌ File not found.", show_alert=True)
         
-        await query.answer("🔐 Encrypting Secure Links...", show_alert=True)
+        await query.answer("🔐 Generating 4GB MTProto Link...", show_alert=True)
         
         file_hash = timer.generate_hash()
         expires_at = timer.get_expiry_date(hours)
         file_name = getattr(media, 'file_name', 'Unknown.mkv')
         size = format_size(getattr(media, 'file_size', 0))
         
-        await db.save_link(file_hash, media.file_id, file_name, size, expires_at)
+        # 🔥 CRITICAL: Saving Chat ID and Message ID for Pyrogram MTProto
+        chat_id = query.message.chat.id
+        message_id = query.message.message_id
+        await db.save_link(file_hash, chat_id, message_id, file_name, size, expires_at)
         
         link_text = (
             f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n"
@@ -505,10 +499,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<i>⚠️ Do not share these links. They will auto-delete.</i>"
         )
         
-        # Restore the original buttons on the file
         await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
-        
-        # Send the links in a beautiful new message with an explosion effect!
         await query.message.reply_text(link_text, parse_mode=ParseMode.HTML, disable_web_page_preview=True, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
     # 4. STANDARD MENUS
@@ -516,7 +507,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
         except BadRequest: pass
     elif data == "info_menu":
-        info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 39.0 Pro\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
+        info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 39.0 Pro (MTProto 4GB Streaming)\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot & Pyrogram\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=info_text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
@@ -535,4 +526,3 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "reverify":
         await query.answer("🔄 Deep Match Protocol...", show_alert=True)
         await handle_media(update, context, force_reverify=True)
-

@@ -1,26 +1,24 @@
 import logging
 import random
 import datetime
+import asyncio
+import os
 from telegram import BotCommand
 from telegram.constants import ParseMode 
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
-# Import the Keep Alive Server
-from keep_alive import keep_alive
-
-# Import Secrets & Modules
 import secret
 import script
 import admin 
-from database.db import db # 🔥 Imported DB to trigger the TTL Index!
+from database.db import db
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
-    level=logging.INFO,
-    handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()]
-)
+# 🔥 Import the web server and the MTProto Client
+from filetolink.server import start_web_server 
+from filetolink.stream import pyro_client 
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO, handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()])
 logging.getLogger("httpx").setLevel(logging.WARNING) 
-logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("pyrogram").setLevel(logging.WARNING) # Keeps Pyrogram spam out of logs
 
 async def startup_setup(app):
     menu_commands = [
@@ -38,23 +36,27 @@ async def startup_setup(app):
     try: await app.bot.set_my_commands(menu_commands)
     except: pass
 
-    # 🔥 INITIALIZE SELF-DESTRUCT TIMER INDEX IN MONGODB
+    # 1. Start MongoDB Self-Destruct Index
     await db.setup_ttl_index()
+
+    # 2. Start Pyrogram MTProto for 4GB Streaming
+    await pyro_client.start()
+    logging.info("✅ Pyrogram MTProto Client Started")
+
+    # 3. Start the Web Server (Replaces keep_alive)
+    asyncio.create_task(start_web_server(app.bot))
 
     if secret.LOG_CHANNEL_ID:
         try:
-            msg = f"🚀 <b>BOT ENGINE INITIATED</b>\n\n<blockquote>🤖 <b>Bot Name:</b> @{app.bot.username}\n🌍 <b>Hosted On:</b> Render.com\n🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n⚙️ <b>Workers:</b> {secret.WORKERS} Active\n⏳ <b>TTL Index:</b> Online</blockquote>"
+            platform = "Heroku" if "WEB_URL" in os.environ else ("Render" if "RENDER" in os.environ else "Local")
+            msg = f"🚀 <b>BOT ENGINE INITIATED</b>\n\n<blockquote>🤖 <b>Bot Name:</b> @{app.bot.username}\n🌍 <b>Hosted On:</b> {platform}\n🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n⚙️ <b>Workers:</b> {secret.WORKERS} Active</blockquote>"
             await app.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=msg, parse_mode=ParseMode.HTML, disable_notification=True)
         except: pass
 
-
 if __name__ == '__main__':
-    print("🚀 TITANIUM 39.0 (FILE-TO-LINK FOUNDATION ONLINE).")
-    
-    keep_alive()
+    print("🚀 TITANIUM 39.0 (4GB STREAMING ENGINE ONLINE).")
     app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).concurrent_updates(True).post_init(startup_setup).build()
     
-    # 🟢 USER COMMANDS
     app.add_handler(CommandHandler("start", script.start))
     app.add_handler(CommandHandler("help", script.help_cmd))
     app.add_handler(CommandHandler("info", script.info_cmd))
@@ -65,18 +67,13 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("id", script.id_cmd))
     app.add_handler(CommandHandler("status", script.status_cmd))
     
-    # 🎥 MEDIA ENGINE
     app.add_handler(MessageHandler(filters.VIDEO | filters.Document.ALL, script.handle_media))
-    
-    # 🔥 RANDOM TEXT ENGINE (Reacts to non-cmd messages with Effects)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, script.handle_text))
     
-    # 💎 PREMIUM
     app.add_handler(CommandHandler("set_caption", script.set_cap))
     app.add_handler(CommandHandler("del_caption", script.del_cap))
     app.add_handler(CommandHandler("my_caption", script.my_cap))
     
-    # 👑 ADMIN
     app.add_handler(CommandHandler("panel", admin.panel))
     app.add_handler(CommandHandler("stats", admin.stats_cmd)) 
     app.add_handler(CommandHandler("broadcast", admin.broadcast)) 
@@ -91,7 +88,6 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("update", admin.update_bot_cmd))
     app.add_handler(CommandHandler("maintenance", admin.maintenance_cmd))
     
-    # 🔥 FIXED CALLBACK HANDLERS 🔥
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     

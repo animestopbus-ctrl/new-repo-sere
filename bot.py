@@ -3,22 +3,22 @@ import random
 import datetime
 import asyncio
 import os
+import time
 from telegram import BotCommand
 from telegram.constants import ParseMode 
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.error import Conflict
 
 import secret
 import script
 import admin 
 from database.db import db
-
-# 🔥 Import the web server and the MTProto Client
 from filetolink.server import start_web_server 
 from filetolink.stream import pyro_client 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO, handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()])
 logging.getLogger("httpx").setLevel(logging.WARNING) 
-logging.getLogger("pyrogram").setLevel(logging.WARNING) # Keeps Pyrogram spam out of logs
+logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 async def startup_setup(app):
     menu_commands = [
@@ -36,14 +36,9 @@ async def startup_setup(app):
     try: await app.bot.set_my_commands(menu_commands)
     except: pass
 
-    # 1. Start MongoDB Self-Destruct Index
     await db.setup_ttl_index()
-
-    # 2. Start Pyrogram MTProto for 4GB Streaming
     await pyro_client.start()
     logging.info("✅ Pyrogram MTProto Client Started")
-
-    # 3. 🔥 FIX: Start the Web Server without arguments
     asyncio.create_task(start_web_server())
 
     if secret.LOG_CHANNEL_ID:
@@ -91,4 +86,14 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     
-    app.run_polling()
+    # 🔥 FIX: Unbreakable Polling Loop. If Render causes a Conflict, the bot waits and retries automatically!
+    while True:
+        try:
+            app.run_polling(drop_pending_updates=True)
+            break
+        except Conflict:
+            logging.warning("⚠️ Conflict detected. Render old instance still running. Retrying in 5 seconds...")
+            time.sleep(5)
+        except Exception as e:
+            logging.error(f"Polling error: {e}")
+            time.sleep(5)

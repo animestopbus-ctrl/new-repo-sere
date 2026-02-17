@@ -1,9 +1,21 @@
-import aiohttp
+import re
+import logging
 from aiohttp import web
-from database.db import db
+from pyrogram import Client
 import secret
+from database.db import db
 
-async def handle_stream(request, bot_instance):
+# 🔥 Initialize the Pyrogram MTProto Client!
+# in_memory=True prevents Render from crashing while trying to create session files
+pyro_client = Client(
+    "titanium_mtproto",
+    api_id=secret.API_ID,
+    api_hash=secret.API_HASH,
+    bot_token=secret.BOT_TOKEN,
+    in_memory=True
+)
+
+async def handle_stream(request):
     hash_id = request.match_info['hash_id']
     link_data = await db.get_link(hash_id)
     
@@ -11,27 +23,49 @@ async def handle_stream(request, bot_instance):
         return web.Response(text="❌ 404 - Link Expired or Invalid", status=404)
     
     try:
-        tg_file = await bot_instance.get_file(link_data['file_id'])
-        tg_url = f"https://api.telegram.org/file/bot{secret.BOT_TOKEN}/{tg_file.file_path}"
-        
-        # 🔥 CRITICAL: Forward the 'Range' header to support video seeking!
-        req_headers = {}
-        if 'Range' in request.headers:
-            req_headers['Range'] = request.headers['Range']
+        # Fetch the exact message from Telegram using MTProto
+        message = await pyro_client.get_messages(link_data['chat_id'], link_data['message_id'])
+        if not message or message.empty:
+            return web.Response(text="❌ File not found on Telegram servers.", status=404)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(tg_url, headers=req_headers) as resp:
-                headers = dict(resp.headers)
-                
-                # 🔥 CRITICAL: This tells the browser to PLAY it inline, not download it
-                headers['Content-Disposition'] = f'inline; filename="{link_data["file_name"]}"'
-                
-                response = web.StreamResponse(status=resp.status, headers=headers)
-                await response.prepare(request)
-                
-                async for chunk in resp.content.iter_chunked(1024 * 64):
-                    await response.write(chunk)
-                
-                return response
+        media = message.document or message.video or message.audio
+        if not media:
+            return web.Response(text="❌ No media found in this message.", status=404)
+
+        file_size = getattr(media, 'file_size', 0)
+        
+        offset = 0
+        limit = file_size - 1
+
+        # 🔥 Handle Byte-Range requests for seeking in video players
+        range_header = request.headers.get('Range')
+        if range_header:
+            match = re.match(r'bytes=(\d+)-(\d*)', range_header)
+            if match:
+                offset = int(match.group(1))
+                if match.group(2):
+                    limit = int(match.group(2))
+
+        req_length = limit - offset + 1
+
+        headers = {
+            'Content-Range': f'bytes {offset}-{limit}/{file_size}',
+            'Accept-Ranges': 'bytes',
+            'Content-Length': str(req_length),
+            'Content-Type': getattr(media, 'mime_type', 'video/mp4'),
+            'Content-Disposition': f'inline; filename="{link_data["file_name"]}"'
+        }
+
+        # 206 Partial Content is required for video players to work
+        response = web.StreamResponse(status=206 if range_header else 200, headers=headers)
+        await response.prepare(request)
+
+        # 🚀 Stream directly from Telegram MTProto (up to 4GB!)
+        async for chunk in pyro_client.stream_media(message, offset=offset, limit=req_length):
+            await response.write(chunk)
+            
+        return response
+
     except Exception as e:
+        logging.error(f"Stream Error: {str(e)}")
         return web.Response(text=f"Stream Error: {str(e)}", status=500)

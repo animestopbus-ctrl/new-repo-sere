@@ -1,8 +1,6 @@
 import os
 import logging
 import asyncio
-import json
-from subprocess import Popen, PIPE, call
 from aiohttp import web
 from database.db import db
 
@@ -17,91 +15,8 @@ def get_domain(request):
     fallback = f"{request.scheme}://{request.host}"
     return os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", fallback)).rstrip('/')
 
-def get_metadata(file_path):
-    try:
-        cmd = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', file_path]
-        proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
-        out, err = proc.communicate()
-        data = json.loads(out)
-        streams = data.get('streams', [])
-        has_video = any(s['codec_type'] == 'video' for s in streams)
-        has_audio = any(s['codec_type'] == 'audio' for s in streams)
-        audio_tracks = [{'index': s['index'], 'label': s.get('tags', {}).get('title', f'Audio {i+1}'), 'language': s.get('tags', {}).get('language', 'und')} for i, s in enumerate(streams) if s['codec_type'] == 'audio']
-        return {
-            'has_video': has_video,
-            'has_audio': has_audio,
-            'audio_tracks': audio_tracks
-        }
-    except Exception as e:
-        logging.error(f"Error getting metadata: {e}")
-        return {'has_video': True, 'has_audio': True, 'audio_tracks': []}
-
-def generate_hls(file_path, hls_dir, metadata):
-    if os.path.exists(os.path.join(hls_dir, 'master.m3u8')):
-        return
-
-    os.makedirs(hls_dir, exist_ok=True)
-
-    audio_tracks = metadata['audio_tracks']
-    qualities = [
-        ('360p', 640, 360, 800000, 28),
-        ('480p', 854, 480, 1400000, 26),
-        ('720p', 1280, 720, 2800000, 24),
-        ('1080p', 1920, 1080, 5000000, 22),
-    ]
-
-    cmd = ['ffmpeg', '-hide_banner', '-y', '-i', file_path]
-
-    # Map video for each quality
-    for _ in qualities:
-        cmd += ['-map', '0:v:0']
-
-    # Map all audio tracks
-    for _ in audio_tracks:
-        cmd += ['-map', '0:a?']
-
-    # Video codecs and filters
-    for i, q in enumerate(qualities):
-        cmd += [
-            f'-c:v:{i}', 'libx264',
-            f'-preset:{i}', 'veryfast',
-            f'-crf:{i}', str(q[4]),
-            f'-b:v:{i}', str(q[3]),
-            f'-vf:{i}', f'scale={q[1]}:{q[2]}:force_original_aspect_ratio=decrease,pad={q[1]}:{q[2]}:(ow-iw)/2:(oh-ih)/2',
-            f'-maxrate:{i}', str(q[3]),
-            f'-bufsize:{i}', str(q[3] * 2),
-        ]
-
-    # Audio codecs
-    audio_start = len(qualities)
-    for j in range(len(audio_tracks)):
-        cmd += [f'-c:a:{audio_start + j}', 'aac', f'-b:a:{audio_start + j}', '128k']
-
-    # HLS settings
-    cmd += [
-        '-hls_time', '10',
-        '-hls_playlist_type', 'vod',
-        '-hls_segment_filename', os.path.join(hls_dir, '%v/seg_%03d.ts'),
-        '-master_pl_name', 'master.m3u8',
-        '-hls_flags', 'independent_segments',
-        '-hls_segment_type', 'mpegts',
-    ]
-
-    # Var stream map
-    vsm = []
-    for i, q in enumerate(qualities):
-        vsm.append(f'v:{i} a:0 name:{q[0]}')
-
-    for j, track in enumerate(audio_tracks):
-        vsm.append(f'a:{j} name:{track["label"]} language:{track["language"]}')
-
-    cmd += ['-var_stream_map', ' '.join(vsm)]
-    cmd += [os.path.join(hls_dir, '%v.m3u8')]
-
-    call(cmd)
-
 # ================= REDESIGNED HTML UI =================
-HTML_TEMPLATE = """
+HTML_TEMPLATE = r"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -795,7 +710,6 @@ HTML_TEMPLATE = """
     </footer>
 
     <script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     {{ADDITIONAL_SCRIPT_SRC}}
 
     <script>
@@ -810,65 +724,11 @@ HTML_TEMPLATE = """
                 preload: 'auto',
                 fluid: false,
                 aspectRatio: '16:9',
+                sources: [{
+                    src: '{{STREAM_URL}}',
+                    type: '{{MIME_TYPE}}'
+                }]
             });
-
-            const src = '{{STREAM_URL}}';
-            const type = '{{MIME_TYPE}}';
-
-            if (Hls.isSupported() && type === 'application/x-mpegURL') {
-                const hls = new Hls();
-                hls.loadSource(src);
-                hls.attachMedia(playerEl);
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    // Audio Tracks
-                    const audioTracks = hls.audioTracks;
-                    if (audioTracks.length > 1) {
-                        const AudioButton = videojs.getComponent('Button');
-                        class CustomAudioButton extends AudioButton {
-                            constructor(player, options) {
-                                super(player, options);
-                                this.addClass('vjs-audio-button');
-                                this.controlText('Audio Tracks');
-                                this.el().innerHTML += '<i data-lucide="languages"></i>';
-                            }
-                            handleClick() {
-                                document.querySelector('.audio-dropdown')?.classList.toggle('active');
-                            }
-                        }
-                        videojs.registerComponent('CustomAudioButton', CustomAudioButton);
-                        player.controlBar.addChild('CustomAudioButton', {}, player.controlBar.children().length - 3);
-
-                        const audioDropdown = document.createElement('div');
-                        audioDropdown.className = 'audio-dropdown aspect-dropdown';
-                        player.el().appendChild(audioDropdown);
-
-                        audioTracks.forEach((track, index) => {
-                            const item = document.createElement('div');
-                            item.className = 'aspect-item';
-                            item.textContent = track.name || track.lang || `Track ${index + 1}`;
-                            if (hls.audioTrack === index) item.classList.add('active');
-                            item.addEventListener('click', () => {
-                                hls.audioTrack = index;
-                                audioDropdown.querySelector('.active')?.classList.remove('active');
-                                item.classList.add('active');
-                                audioDropdown.classList.remove('active');
-                            });
-                            audioDropdown.appendChild(item);
-                        });
-                    }
-
-                    // Quality Levels
-                    const levels = hls.levels;
-                    if (levels.length > 1) {
-                        player.qualityLevels().on('addqualitylevel', function(event) {
-                            const qualityLevel = event.qualityLevel;
-                            qualityLevel.enabled = true;
-                        });
-                    }
-                });
-            } else {
-                player.src({src: src, type: type});
-            }
 
             player.on('loadedmetadata', function() {
                 originalAspect = (player.videoHeight() / player.videoWidth() * 100) + '%';
@@ -997,9 +857,6 @@ HTML_TEMPLATE = """
             if (!e.target.closest('.vjs-aspect-button')) {
                 document.querySelector('.aspect-dropdown')?.classList.remove('active');
             }
-            if (!e.target.closest('.vjs-audio-button')) {
-                document.querySelector('.audio-dropdown')?.classList.remove('active');
-            }
         });
 
         document.querySelector('.mobile-menu')?.addEventListener('click', () => {
@@ -1031,18 +888,17 @@ async def watch_page(request):
         return web.Response(text="<h1>❌ 404 - Link Expired</h1><p>The self-destruct timer has triggered.</p>", content_type='text/html', status=404)
     
     file_name = link_data.get('file_name', 'Unknown_Video.mp4')
-    file_path = link_data.get('file_path')  # Assuming db has file_path
     domain = get_domain(request)
     dl_url = f"{domain}/dl/{hash_id}"
     
-    metadata = get_metadata(file_path)
-    has_video = metadata['has_video']
     ext = file_name.split('.')[-1].lower()
+    is_audio = ext in ['mp3', 'wav', 'ogg', 'm4a']
     
-    if has_video:
-        hls_dir = f'tmp/hls/{hash_id}'
-        stream_url = f"{domain}/hls/{hash_id}/master.m3u8"
-        mime_type = 'application/x-mpegURL'
+    # 🔥 FIX: Route perfectly back to our MTProto Turbo Streamer
+    stream_url = f"{domain}/stream/{hash_id}"
+    
+    if not is_audio:
+        mime_type = 'video/mp4' # Browsers like video/mp4 even for mkv raw byte streams
         player_element = '<video id="player" class="video-js vjs-big-play-centered" playsinline preload="auto"></video>'
         additional_head = ''
         additional_html = '<div class="aspect-dropdown"><div class="aspect-item" data-aspect="original">Original</div><div class="aspect-item" data-aspect="16:9">16:9</div><div class="aspect-item" data-aspect="4:3">4:3</div><div class="aspect-item" data-aspect="fill">Fill</div><div class="aspect-item" data-aspect="cover">Cover</div></div>'
@@ -1050,11 +906,8 @@ async def watch_page(request):
         additional_init_script = ''
         body_class = ''
         play_status = 'Streaming'
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, generate_hls, file_path, hls_dir, metadata)
     else:
-        stream_url = f"{domain}/stream/{hash_id}"
-        mime_type = f'audio/{ext}' if ext in ['mp3', 'wav', 'ogg'] else 'application/octet-stream'
+        mime_type = f'audio/{ext}' 
         player_element = '<audio id="player" class="video-js" playsinline preload="auto"></audio>'
         additional_head = ''
         additional_html = '<div id="waveform"></div>'
@@ -1078,7 +931,7 @@ async def watch_page(request):
             });
         """
         body_class = 'class="is-audio"'
-        play_status = 'Playing'
+        play_status = 'Playing Audio'
 
     html = HTML_TEMPLATE.replace('{{FILE_NAME}}', file_name) \
                         .replace('{{STREAM_URL}}', stream_url) \
@@ -1093,25 +946,6 @@ async def watch_page(request):
                         .replace('{{PLAY_STATUS}}', play_status)
 
     return web.Response(text=html, content_type='text/html')
-
-# HLS Serve
-@routes.get('/hls/{hash_id}/{path:.*}')
-async def hls_serve(request):
-    hash_id = request.match_info['hash_id']
-    path = request.match_info['path']
-    hls_dir = f'tmp/hls/{hash_id}'
-    file_path = os.path.join(hls_dir, path)
-
-    if not os.path.exists(file_path):
-        return web.Response(status=404)
-
-    headers = {}
-    if file_path.endswith('.m3u8'):
-        headers['Content-Type'] = 'application/vnd.apple.mpegurl'
-    elif file_path.endswith('.ts'):
-        headers['Content-Type'] = 'video/mp2t'
-
-    return web.FileResponse(file_path, headers=headers)
 
 # 📥 Route Traffic to download.py
 @routes.get('/dl/{hash_id}')

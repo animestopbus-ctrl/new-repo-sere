@@ -8,3 +8,5 @@ speedtest-cli
 fastapi
 uvicorn
 aiohttp
+pyrogram
+TgCrypto

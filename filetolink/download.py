@@ -53,11 +53,11 @@ async def handle_download(request):
         
         streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=15, prefetch_mb=50)
         
-        # 🔥 FIX: Gracefully handle Download Managers pausing/resuming
+        # 🔥 FIX: Correct Exception handling for IDM Resumes
         try:
             async for chunk in streamer.generate():
                 await response.write(chunk)
-        except (ConnectionResetError, aiohttp.ClientPayloadError, aiohttp.ClientDisconnectedError):
+        except (ConnectionResetError, aiohttp.ClientPayloadError):
             pass
         except Exception as e:
             if "closing transport" not in str(e) and "Connection lost" not in str(e):

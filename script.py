@@ -20,7 +20,6 @@ import admin
 from filetolink import timer
 
 # 🔥 DYNAMIC DOMAIN ENGINE
-# Hardcoded to your Render URL for absolute stability
 DOMAIN = os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", "https://new-repo-sere.onrender.com")).rstrip('/')
 
 # ================= UTILITIES =================
@@ -192,13 +191,13 @@ def get_timer_markup():
         [InlineKeyboardButton("⬅️ Cancel", callback_data="cancel_timer", api_kwargs={"style": "danger"})]
     ])
 
-# 🔥 NEW: URL UI BUTTONS
+# 🔥 NEW: STRICTLY URL BUTTONS (No api_kwargs to prevent Telegram crash)
 def get_url_markup(hash_id):
     dl_url = f"{DOMAIN}/dl/{hash_id}"
     watch_url = f"{DOMAIN}/watch/{hash_id}"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚀 FAST DOWNLOAD", url=dl_url, api_kwargs={"style": "primary"})],
-        [InlineKeyboardButton("🖥️ INSTANT STREAM", url=watch_url, api_kwargs={"style": "success"})]
+        [InlineKeyboardButton("🚀 FAST DOWNLOAD", url=dl_url)],
+        [InlineKeyboardButton("🖥️ INSTANT STREAM", url=watch_url)]
     ])
 
 async def is_subscribed(user_id, context):
@@ -480,7 +479,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_name = getattr(media, 'file_name', 'Unknown') if media else 'Unknown'
         await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
 
-    # 🔥 3. FILE TO LINK: GENERATE HASH (UI BUTTON FIX)
+    # 🔥 3. FILE TO LINK: GENERATE UI BUTTONS
     elif data.startswith("timer_"):
         hours = int(data.split("_")[1])
         media = query.message.document or query.message.video
@@ -497,6 +496,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_id = query.message.message_id
         await db.save_link(file_hash, chat_id, message_id, file_name, size, expires_at)
         
+        # CLEAN TEXT (No raw URLs inside the body)
         link_text = (
             f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n"
             f"✅ <b>LINKS GENERATED SUCCESSFULLY</b>\n\n"
@@ -506,13 +506,13 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<i>⚠️ Do not share these links. They will auto-delete.</i>"
         )
         
+        # Restore the original file's buttons
         await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
         
-        # 🔥 FIX: No effect_id attached here, and buttons are generated properly!
+        # SEND THE URL BUTTONS
         await query.message.reply_text(
             text=link_text, 
             parse_mode=ParseMode.HTML, 
-            disable_web_page_preview=True,
             reply_markup=get_url_markup(file_hash)
         )
 

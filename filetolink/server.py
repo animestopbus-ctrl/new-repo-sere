@@ -416,23 +416,19 @@ async def watch_page(request):
     try:
         hash_id = request.match_info['hash_id']
         link_data = await db.get_link(hash_id)
-    
         if not link_data:
             return web.Response(text="<h1>❌ 404 - Link Expired</h1><p>The self-destruct timer has triggered.</p>", content_type='text/html', status=404)
-    
-        file_name = link_data.get('file_name', 'Unknown_Video.mp4')
-        domain = get_domain(request)
-    
-        # 🔥 FIX: Route perfectly back to our pure MTProto Turbo Streamer instead of local HLS
+        file_name = link_data.get('file_name') or 'Unknown_Video.mp4'  # Fix: Handle None
+        domain = get_domain(request) or 'https://new-repo-sere.onrender.com'  # Fix: Fallback if env var issue
         stream_url = f"{domain}/stream/{hash_id}"
         dl_url = f"{domain}/dl/{hash_id}"
-        # Safely inject the variables
-        html = HTML_TEMPLATE.replace('{{FILE_NAME}}', file_name) \
-                            .replace('{{STREAM_URL}}', stream_url) \
-                            .replace('{{DL_URL}}', dl_url)
+        # Safely inject the variables (ensure str)
+        html = HTML_TEMPLATE.replace('{{FILE_NAME}}', str(file_name)) \
+                            .replace('{{STREAM_URL}}', str(stream_url)) \
+                            .replace('{{DL_URL}}', str(dl_url))
         return web.Response(text=html, content_type='text/html')
     except Exception as e:
-        logging.error(f"Error in watch_page: {e}")
+        logging.error(f"Error in watch_page: {traceback.format_exc()}")
         return web.Response(text="<h1>500 Internal Server Error</h1><p>Something went wrong.</p>", content_type='text/html', status=500)
 # 📥 Route Traffic to download.py
 @routes.get('/dl/{hash_id}')
@@ -440,7 +436,7 @@ async def download_route(request):
     try:
         return await handle_download(request)
     except Exception as e:
-        logging.error(f"Error in download_route: {e}")
+        logging.error(f"Error in download_route: {traceback.format_exc()}")
         return web.Response(text="<h1>500 Internal Server Error</h1><p>Something went wrong.</p>", content_type='text/html', status=500)
 # 🚀 Route Traffic to stream.py
 @routes.get('/stream/{hash_id}')
@@ -448,7 +444,7 @@ async def stream_route(request):
     try:
         return await handle_stream(request)
     except Exception as e:
-        logging.error(f"Error in stream_route: {e}")
+        logging.error(f"Error in stream_route: {traceback.format_exc()}")
         return web.Response(text="<h1>500 Internal Server Error</h1><p>Something went wrong.</p>", content_type='text/html', status=500)
 # ⚙️ Start the Server
 async def start_web_server():

@@ -9,7 +9,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 
 import secret
 import script
-import admin 
+import admin
+import cleanup
 from database.db import db
 from filetolink.server import start_web_server 
 
@@ -139,3 +140,4 @@ if __name__ == '__main__':
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\nBot stopped by user.")
+

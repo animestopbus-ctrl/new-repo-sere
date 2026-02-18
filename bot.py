@@ -3,17 +3,16 @@ import datetime
 import asyncio
 import os
 import signal
+import httpx
 from telegram import BotCommand
 from telegram.constants import ParseMode 
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from telegram.error import Conflict
 
 import secret
 import script
 import admin 
 from database.db import db
 from filetolink.server import start_web_server 
-from filetolink.stream import pyro_client 
 
 # ================= LOGGING SETUP =================
 logging.basicConfig(
@@ -24,18 +23,45 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING) 
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
+# Mute PTB's internal spam so your Render logs stay clean during conflicts
+logging.getLogger("telegram.ext.Updater").setLevel(logging.ERROR)
+
+async def secure_polling_lock():
+    """Directly queries Telegram API to check if the old Render instance is dead yet."""
+    url = f"https://api.telegram.org/bot{secret.BOT_TOKEN}/getUpdates?limit=1&timeout=1"
+    logging.info("⏳ Checking Telegram Polling Lock (Waiting for old instance to die)...")
+    
+    async with httpx.AsyncClient() as client:
+        while True:
+            try:
+                res = await client.get(url, timeout=5)
+                if res.status_code == 409:
+                    logging.warning("⚠️ Conflict: Old Render instance is still running. Waiting 10 seconds...")
+                    await asyncio.sleep(10)
+                else:
+                    logging.info("✅ Telegram Polling Lock Secured! The coast is clear.")
+                    break
+            except Exception as e:
+                logging.error(f"Lock check error: {e}")
+                await asyncio.sleep(5)
+
 # ================= MAIN ASYNC ENGINE =================
 async def main():
     print("🚀 TITANIUM 39.0 (4GB STREAMING ENGINE ONLINE).")
     
     # 1. BOOT WEB SERVER IMMEDIATELY
-    # This tells Render "I am healthy!" so Render begins killing the old bot instance.
+    # This tells Render "I am healthy!" so it triggers the termination of the old bot.
     asyncio.create_task(start_web_server())
     
-    # 2. INITIALIZE DATABASE
+    # 2. SECURE THE LOCK BEFORE STARTING THE TELEGRAM BOT
+    # This completely blocks the script from crashing while Render transitions instances.
+    if "RENDER" in os.environ:
+        await secure_polling_lock()
+        
+    # 3. INITIALIZE DATABASE
     await db.setup_ttl_index()
 
-    # 3. BUILD TELEGRAM APP
+    # 4. BUILD TELEGRAM APP
     app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).build()
     
     menu_commands = [
@@ -51,7 +77,7 @@ async def main():
         BotCommand("panel", "👑 [Admin] Open Dashboard")
     ]
     
-    # 4. REGISTER HANDLERS
+    # 5. REGISTER HANDLERS
     app.add_handler(CommandHandler("start", script.start))
     app.add_handler(CommandHandler("help", script.help_cmd))
     app.add_handler(CommandHandler("info", script.info_cmd))
@@ -86,15 +112,17 @@ async def main():
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     
-    # 5. INITIALIZE APP
+    # 6. INITIALIZE APP
     await app.initialize()
     try:
         await app.bot.set_my_commands(menu_commands)
     except Exception:
         pass
+    
+    # 🌟 SAFE START
     await app.start()
+    await app.updater.start_polling(drop_pending_updates=True)
 
-    # Log Startup to Channel
     if secret.LOG_CHANNEL_ID:
         try:
             platform = "Heroku" if "WEB_URL" in os.environ else ("Render" if "RENDER" in os.environ else "Local")
@@ -102,19 +130,7 @@ async def main():
             await app.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=msg, parse_mode=ParseMode.HTML, disable_notification=True)
         except: pass
 
-    # 6. 🔥 THE ULTIMATE CONFLICT FIX 🔥
-    logging.info("⏳ Securing Telegram Polling Lock...")
-    while True:
-        try:
-            await app.updater.start_polling(drop_pending_updates=True)
-            logging.info("✅ Telegram Polling Lock Secured! Bot is fully online.")
-            break # Success! Break out of the loop.
-        except Conflict:
-            logging.warning("⚠️ Conflict detected! Old Render instance is currently dying. Waiting 5 seconds...")
-            await asyncio.sleep(5)
-        except Exception as e:
-            logging.error(f"Unexpected Polling Error: {e}")
-            await asyncio.sleep(5)
+    logging.info("✅ Bot is fully online and polling successfully.")
 
     # 7. KEEP EVENT LOOP ALIVE
     stop_signal = asyncio.Event()

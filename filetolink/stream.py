@@ -1,12 +1,11 @@
 import re
 import logging
-import aiohttp
 from aiohttp import web
 from pyrogram import Client
 import secret
 from database.db import db
-from filetolink.fast import ParallelStreamer # 🔥 Turbo Engine
 
+# Initialize MTProto Client
 pyro_client = Client(
     "titanium_mtproto",
     api_id=secret.API_ID,
@@ -36,6 +35,7 @@ async def handle_stream(request):
         offset = 0
         limit = file_size - 1
 
+        # Handle Browser Range Requests perfectly
         range_header = request.headers.get('Range')
         if range_header:
             match = re.match(r'bytes=(\d+)-(\d*)', range_header)
@@ -58,25 +58,38 @@ async def handle_stream(request):
         }
 
         response = web.StreamResponse(status=206 if range_header else 200, headers=headers)
+        response.enable_compression()
         await response.prepare(request)
 
-        streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=15, prefetch_mb=20)
-        
-        # 🔥 FIX: Removed the invalid aiohttp attribute and used standard Python network errors
+        # Telegram Chunk Math (1MB Blocks)
+        chunk_size = 1048576 
+        first_part_cut = offset % chunk_size
+        first_chunk_no = offset // chunk_size
+        bytes_to_send = req_length
+
         try:
-            async for chunk in streamer.generate():
+            # 🚀 NATIVE PIPELINE: Instant delivery, zero RAM overhead
+            async for chunk in pyro_client.stream_media(message, offset=first_chunk_no):
+                if first_part_cut:
+                    chunk = chunk[first_part_cut:]
+                    first_part_cut = 0
+                    
+                if len(chunk) > bytes_to_send:
+                    chunk = chunk[:bytes_to_send]
+                    
                 await response.write(chunk)
-        except (ConnectionResetError, aiohttp.ClientPayloadError):
-            # Normal behavior: Browser got enough video and paused the connection
-            pass
+                
+                bytes_to_send -= len(chunk)
+                if bytes_to_send <= 0:
+                    break
         except Exception as e:
+            # Safely ignore normal browser disconnections
             if "closing transport" not in str(e) and "Connection lost" not in str(e):
-                logging.error(f"Stream Write Error: {str(e)}")
+                logging.error(f"Stream Write Error: {e}")
                 
         return response
 
     except Exception as e:
-        # Ignore false-positive transport errors
         if "closing transport" not in str(e) and "Connection lost" not in str(e):
-            logging.error(f"Stream Error: {str(e)}")
+            logging.error(f"Stream Error: {e}")
         return web.Response(status=500)

@@ -26,12 +26,12 @@ async def watch_page(request):
     try:
         hash_id = request.match_info.get('hash_id')
         link_data = await db.get_link(hash_id)
-    
+        
         if not link_data:
             return web.Response(text="❌ Link Expired or Invalid", status=404)
-        
+            
         return {
-            'file_name': link_data['file_name'],
+            'file_name': link_data.get('file_name') or 'Unknown_Video.mp4',  # Fix: Handle None
             'stream_url': f"/stream/{hash_id}",
             'image_url': random.choice(secret.IMAGE_LINKS), # Random Poster
             'mime_type': 'video/mp4' # Default fallback
@@ -50,7 +50,7 @@ async def handle_stream(request: web.Request):
         if not media:
             return web.Response(text="❌ Media not found", status=404)
         file_size = int(getattr(media, 'file_size', 0))
-        filename = link_data.get("file_name") or getattr(media, 'file_name', 'video.mp4')
+        filename = link_data.get('file_name') or getattr(media, 'file_name', 'video.mp4')  # Fix: Handle None
         mime_type = getattr(media, "mime_type", "video/mp4")
         offset = 0
         limit = file_size - 1
@@ -86,8 +86,7 @@ async def handle_stream(request: web.Request):
             message,
             offset_bytes=offset,
             limit_bytes=limit,
-            workers=1,
-            chunk_size=1024 * 1024, # 1MB Chunks (Perfect balance)
+            workers=1
         )
         async for chunk in streamer.generate():
             try:

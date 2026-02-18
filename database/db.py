@@ -51,7 +51,8 @@ class Database:
             'premium_expiry': None,
             'daily_usage': 0,
             'limit_reset_time': None,
-            'is_banned': False
+            'is_banned': False,
+            'is_admin': False  # Added for multi-admin support
         }
 
     async def add_user(self, id, name, username):

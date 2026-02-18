@@ -26,6 +26,42 @@ DOMAIN = os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", "https://new-repo
 # 🛡️ ANTI-SPAM CACHE (Memory)
 SPAM_CACHE = {}
 
+# ================= GLOBAL TEXT CONSTANTS (Fixes NameError) =================
+START_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
+
+Hey <b>{name}</b>! Welcome aboard ⚡️
+I’m here to make renaming, organizing, and sharing your media simple and hassle-free.
+
+<b>What I can do for you:</b>
+<blockquote>├ 🎬 <b>Accurate Details:</b> Fetches trusted IMDb & TMDB info.
+├ 🔎 <b>Smart Detection:</b> Recognizes Anime, K-Dramas & Movies.
+├ 🎧 <b>Media Analysis:</b> Identifies audio & quality.
+├ 🔗 <b>File-to-Link:</b> Converts files to download links.
+╰ 🖼 <b>Clean Results:</b> Keeps thumbnails intact.</blockquote>"""
+
+HELP_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
+
+🛠️ <b>How to Use</b>
+
+<blockquote>1️⃣ <b>Send or forward</b> any movie, series, or anime file.
+
+2️⃣ I’ll <b>clean unnecessary tags</b> and organize the filename.
+
+3️⃣ Then I search <b>trusted databases</b> to fetch details.
+
+4️⃣ Finally, you’ll receive a <b>renamed file</b> with thumbnails — and you can convert it to a link!</blockquote>"""
+
+INFO_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
+
+🤖 <b>About This Bot</b>
+
+I’m built to help you rename, organize, and share your media smoothly.
+
+<blockquote>🟢 <b>Version:</b> v2.1.1
+👨‍💻 <b>Developer:</b> <a href="https://t.me/DmOwner">@Ⓜ️ark</a>
+🐍 <b>Language:</b> Python
+🗄️ <b>Database:</b> MongoDB</blockquote>"""
+
 # ================= UTILITIES =================
 async def get_img():
     db_img = await db.get_bot_image()
@@ -168,7 +204,6 @@ def fetch_smart_metadata(title, year, original_filename):
     return data
 
 async def safe_reply(msg_obj, text, **kwargs):
-    """Attempts to send message with effect. Falls back to normal text if Telegram rejects the effect ID."""
     try:
         return await msg_obj.reply_text(text, **kwargs)
     except BadRequest as e:
@@ -182,8 +217,9 @@ def get_main_menu_markup():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("📚 How to Use", callback_data="help_menu", api_kwargs={"style": "danger"}), InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu", api_kwargs={"style": "success"})],
-        [InlineKeyboardButton("👨‍💻 Developer", web_app=WebAppInfo(url="https://github.com/LastPerson07")), InlineKeyboardButton("🤝 Affiliated Dev", web_app=WebAppInfo(url="https://github.com/abhinai2244"))],
-        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "danger"})]
+        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "secondary"})],
+        # 🔥 DEVELOPER BUTTON: Bottom, Center, Single Line
+        [InlineKeyboardButton("👨‍💻 Developer", web_app=WebAppInfo(url="https://github.com/LastPerson07"))]
     ])
 
 def get_help_menu_markup():
@@ -294,23 +330,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await sticker_msg.delete()
     except: pass
 
-    # 🔥 FIX: Perfectly formatted Start Text
-    start_text = (
-        "<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n"
-        f"Hey <b>{esc(user.first_name)}</b>! Welcome aboard ⚡️\n"
-        "I’m here to make renaming, organizing, and sharing your media simple and hassle-free.\n\n"
-        "<b>What I can do for you:</b>\n"
-        "<blockquote>├ 🎬 <b>Accurate Details:</b> Fetches trusted IMDb & TMDB information.\n"
-        "├ 🔎 <b>Smart Detection:</b> Automatically recognizes Anime, K-Dramas, Movies, and Series.\n"
-        "├ 🎧 <b>Media Analysis:</b> Identifies audio languages and video quality with precision.\n"
-        "├ 🔗 <b>File-to-Link:</b> Instantly converts your files into shareable download links.\n"
-        "╰ 🖼 <b>Clean Results:</b> Keeps posters and thumbnails intact for a polished look.</blockquote>"
-    )
-
     img = await get_img()
     sent_msg = await update.message.reply_photo(
         photo=img, 
-        caption=start_text, 
+        caption=START_TEXT.format(name=esc(user.first_name)), 
         parse_mode=ParseMode.HTML, 
         reply_markup=get_main_menu_markup()
     )
@@ -320,41 +343,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    
-    # 🔥 FIX: Perfectly formatted Help Text
-    help_text = (
-        "<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n"
-        "🛠️ <b>How to Use</b>\n\n"
-        "<blockquote>1️⃣ <b>Send or forward</b> any movie, series, anime, or media file.\n\n"
-        "2️⃣ I’ll <b>clean unnecessary tags</b> and organize the filename.\n\n"
-        "3️⃣ Then I search <b>trusted databases</b> to fetch accurate details.\n\n"
-        "4️⃣ Finally, you’ll receive a <b>neatly renamed file</b> with proper thumbnails — and you can even convert it into a shareable link.</blockquote>"
-    )
-
     img = await get_img()
-    sent_msg = await update.message.reply_photo(photo=img, caption=help_text, parse_mode=ParseMode.HTML, reply_markup=get_help_menu_markup())
+    sent_msg = await update.message.reply_photo(photo=img, caption=HELP_TEXT, parse_mode=ParseMode.HTML, reply_markup=get_help_menu_markup())
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("📚"), is_big=True)
     except: pass
 
 async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    
-    # 🔥 FIX: Perfectly formatted Info Text
-    info_text = (
-        "<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n"
-        "🤖 <b>About This Bot</b>\n\n"
-        "I’m built to help you rename, organize, and share your media smoothly — fast, reliable, and easy to use.\n\n"
-        "<blockquote>🟢 <b>Version:</b> v2.1.1\n"
-        "👨‍💻 <b>Developer:</b> <a href=\"https://t.me/DmOwner\">@Ⓜ️ark</a>\n"
-        "🐍 <b>Language:</b> <a href=\"https://www.python.org\">Python</a>\n"
-        "🗄️ <b>Database:</b> <a href=\"https://www.mongodb.com\">MongoDB</a></blockquote>\n\n"
-        "<i>Need help, have feedback, or looking for a custom bot? <a href=\"https://t.me/DmOwner\">Contact the developer</a>.</i>"
-    )
-
     markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/DmOwner", api_kwargs={"style": "primary"})]])
     img = await get_img()
-    sent_msg = await update.message.reply_photo(photo=img, caption=info_text, parse_mode=ParseMode.HTML, reply_markup=markup)
+    sent_msg = await update.message.reply_photo(photo=img, caption=INFO_TEXT, parse_mode=ParseMode.HTML, reply_markup=markup)
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("ℹ️"), is_big=True)
     except: pass
 
@@ -449,7 +448,9 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(1.2)
         except: pass
 
-    original_name = getattr(media, 'file_name', 'Unknown_File.mp4')
+    # 🔥 FIX: Crash prevention for missing filenames
+    original_name = getattr(media, 'file_name', None) or 'Unknown_File.mkv'
+    
     clean_original = pre_clean_filename(original_name)
     parsed = guessit(clean_original)
     
@@ -523,7 +524,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     
-    # 🔥 ANTI-SPAM LOGIC: Silently reject rapid double-clicks
     user_id = update.effective_user.id
     now = time.time()
     if query.data in ["ask_timer"] or query.data.startswith("timer_"):
@@ -535,7 +535,6 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     img = await get_img()
     
-    # Empty callback for the gray "Links Generated Below" button
     if data == "ignore":
         return
 
@@ -546,7 +545,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sent_msg = await context.bot.send_photo(
                 chat_id=query.message.chat.id,
                 photo=img, 
-                caption=secret.START_TEXT.format(name=esc(update.effective_user.first_name)), 
+                caption=START_TEXT.format(name=esc(update.effective_user.first_name)), 
                 parse_mode=ParseMode.HTML, 
                 reply_markup=get_main_menu_markup()
             )
@@ -582,7 +581,6 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_id = query.message.message_id
         await db.save_link(file_hash, chat_id, message_id, file_name, size, expires_at)
         
-        # 🔥 FIX: Perfectly formatted Links Text
         link_text = (
             f"<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n"
             f"✅ <b>Your links are ready!</b>\n\n"
@@ -597,10 +595,11 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_reply(query.message, text=link_text, parse_mode=ParseMode.HTML, reply_markup=get_url_markup(file_hash), disable_web_page_preview=True, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
     elif data == "help_menu":
-        try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=help_text, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
+        try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=HELP_TEXT, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
         except BadRequest: pass
     elif data == "info_menu":
-        try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=info_text, parse_mode=ParseMode.HTML), reply_markup=markup)
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/DmOwner", api_kwargs={"style": "primary"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
+        try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=INFO_TEXT, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
     elif data == "settings_menu":
         user_id = update.effective_user.id
@@ -612,5 +611,5 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
     elif data == "main_menu":
-        try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=start_text, parse_mode=ParseMode.HTML), reply_markup=get_main_menu_markup())
+        try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=START_TEXT.format(name=esc(update.effective_user.first_name)), parse_mode=ParseMode.HTML), reply_markup=get_main_menu_markup())
         except BadRequest: pass

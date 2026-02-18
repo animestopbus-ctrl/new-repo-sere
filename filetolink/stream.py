@@ -1,6 +1,6 @@
 import re
 import logging
-import aiohttp
+import asyncio
 from aiohttp import web
 from pyrogram import Client
 import secret
@@ -9,60 +9,50 @@ from filetolink.fast import TurboStreamer
 
 logger = logging.getLogger(__name__)
 
+# Global Client setup with high worker pool for parallel fetching
 pyro_client = Client(
     "titanium_mtproto",
     api_id=secret.API_ID,
     api_hash=secret.API_HASH,
     bot_token=secret.BOT_TOKEN,
     in_memory=True,
-    workers=8,
-    sleep_threshold=0
+    workers=50,  # 🔥 Increased internal pool for TurboStreamer
+    sleep_threshold=10
 )
 
 async def handle_stream(request: web.Request):
     hash_id = request.match_info.get('hash_id')
-    if not hash_id:
-        return web.Response(text="Bad Request", status=400)
-
     link_data = await db.get_link(hash_id)
     if not link_data:
-        return web.Response(text="❌ 404 - Link Expired or Invalid", status=404)
+        return web.Response(text="❌ 404 - Link Expired", status=404)
 
     try:
         message = await pyro_client.get_messages(link_data['chat_id'], link_data['message_id'])
-        if not message or getattr(message, "empty", False):
-            return web.Response(text="❌ File not found on Telegram.", status=404)
-
-        media = message.document or message.video or message.audio
+        media = getattr(message, "document", None) or getattr(message, "video", None) or getattr(message, "audio", None)
         if not media:
-            return web.Response(text="❌ No media found.", status=404)
+            return web.Response(text="❌ Media not found", status=404)
 
         file_size = int(getattr(media, 'file_size', 0))
+        filename = link_data.get("file_name") or getattr(media, 'file_name', 'video.mp4')
 
         offset = 0
         limit = file_size - 1
-
         range_header = request.headers.get('Range')
+
         if range_header:
-            match = re.match(r"bytes=(\d+)-(\d*)", range_header)
-            if match:
-                offset = int(match.group(1))
-                if match.group(2):
-                    limit = int(match.group(2))
-
-        if offset >= file_size:
-            return web.Response(status=416, headers={"Content-Range": f"bytes */{file_size}"})
-
-        req_length = limit - offset + 1
-        mime = getattr(media, "mime_type", None) or "video/mp4"
+            m = re.match(r"bytes=(\d+)-(\d*)", range_header)
+            if m:
+                offset = int(m.group(1))
+                if m.group(2):
+                    limit = int(m.group(2))
 
         headers = {
+            "Content-Type": getattr(media, "mime_type", "video/mp4"),
             "Accept-Ranges": "bytes",
-            "Content-Length": str(req_length),
+            "Content-Length": str(limit - offset + 1),
             "Content-Range": f"bytes {offset}-{limit}/{file_size}",
-            "Content-Type": mime,
-            "Content-Disposition": f'inline; filename="{link_data["file_name"]}"',
-            "Cache-Control": "public, max-age=31536000",
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Cache-Control": "public, max-age=31536000", # 🔥 Cache it forever
         }
 
         status = 206 if range_header else 200
@@ -74,40 +64,18 @@ async def handle_stream(request: web.Request):
         response.enable_compression(False)
         await response.prepare(request)
 
-        # 🔥 RENDER RAM DIET: Fast startup with strict memory caps
-        streamer = TurboStreamer(
-            pyro_client,
-            message,
-            offset_bytes=offset,
-            limit_bytes=limit,
-            chunk_size=512 * 1024,      # 512KB chunks for instant video start
-            batch_chunks=2,             # Fetch 1MB at a time
-            max_buffer_chunks=16,       # Keep max 8MB in RAM per viewer
-        )
+        # Use 4 workers for Streaming to buffer video fast!
+        streamer = TurboStreamer(pyro_client, message, offset, limit, workers=4)
 
-        writes = 0
-        try:
-            async for chunk in streamer.generate():
-                await response.write(chunk)
-                writes += 1
-                if writes >= 5:
-                    await response.drain()
-                    writes = 0
-
-        except (ConnectionResetError, aiohttp.ClientPayloadError):
-            pass 
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            if "Connection lost" not in str(e):
-                pass 
-        finally:
+        async for chunk in streamer.generate():
             try:
-                await response.write_eof()
-            except:
-                pass
+                await response.write(chunk)
+            except Exception:
+                break 
 
+        await response.write_eof()
         return response
 
     except Exception as e:
+        logger.error(f"Stream Error: {e}")
         return web.Response(status=500)

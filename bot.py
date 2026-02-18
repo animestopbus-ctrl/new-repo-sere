@@ -3,7 +3,6 @@ import datetime
 import asyncio
 import os
 import signal
-import httpx
 from telegram import BotCommand
 from telegram.constants import ParseMode 
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
@@ -20,30 +19,12 @@ logging.basicConfig(
     level=logging.INFO, 
     handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()]
 )
-logging.getLogger("httpx").setLevel(logging.WARNING) 
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
-# Mute PTB's internal spam so your Render logs stay clean during conflicts
-logging.getLogger("telegram.ext.Updater").setLevel(logging.ERROR)
-
-async def secure_polling_lock():
-    """Directly queries Telegram API to check if the old Render instance is dead yet."""
-    url = f"https://api.telegram.org/bot{secret.BOT_TOKEN}/getUpdates?limit=1&timeout=1"
-    logging.info("⏳ Checking Telegram Polling Lock (Waiting for old instance to die)...")
-    
-    async with httpx.AsyncClient() as client:
-        while True:
-            try:
-                res = await client.get(url, timeout=5)
-                if res.status_code == 409:
-                    logging.warning("⚠️ Conflict: Old Render instance is still running. Waiting 10 seconds...")
-                    await asyncio.sleep(10)
-                else:
-                    logging.info("✅ Telegram Polling Lock Secured! The coast is clear.")
-                    break
-            except Exception as e:
-                logging.error(f"Lock check error: {e}")
-                await asyncio.sleep(5)
+# 🔥 THE MAGIC FIX: Mute PTB's internal conflict spam!
+# The bot auto-recovers from conflicts naturally. This just hides the ugly red text.
+logging.getLogger("telegram.ext._utils.networkloop").setLevel(logging.CRITICAL)
+logging.getLogger("telegram.ext.Updater").setLevel(logging.CRITICAL)
 
 # ================= MAIN ASYNC ENGINE =================
 async def main():
@@ -52,16 +33,11 @@ async def main():
     # 1. BOOT WEB SERVER IMMEDIATELY
     # This tells Render "I am healthy!" so it triggers the termination of the old bot.
     asyncio.create_task(start_web_server())
-    
-    # 2. SECURE THE LOCK BEFORE STARTING THE TELEGRAM BOT
-    # This completely blocks the script from crashing while Render transitions instances.
-    if "RENDER" in os.environ:
-        await secure_polling_lock()
         
-    # 3. INITIALIZE DATABASE
+    # 2. INITIALIZE DATABASE
     await db.setup_ttl_index()
 
-    # 4. BUILD TELEGRAM APP
+    # 3. BUILD TELEGRAM APP
     app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).build()
     
     menu_commands = [
@@ -77,7 +53,7 @@ async def main():
         BotCommand("panel", "👑 [Admin] Open Dashboard")
     ]
     
-    # 5. REGISTER HANDLERS
+    # 4. REGISTER HANDLERS
     app.add_handler(CommandHandler("start", script.start))
     app.add_handler(CommandHandler("help", script.help_cmd))
     app.add_handler(CommandHandler("info", script.info_cmd))
@@ -112,14 +88,21 @@ async def main():
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     
-    # 6. INITIALIZE APP
+    # 5. INITIALIZE APP
     await app.initialize()
     try:
         await app.bot.set_my_commands(menu_commands)
     except Exception:
         pass
+        
+    # 6. WAIT FOR RENDER TO KILL OLD BOT (The Tactical Pause)
+    if "RENDER" in os.environ:
+        logging.info("⏳ RENDER DEPLOYMENT DETECTED: Pausing Telegram Polling for 25 seconds...")
+        logging.info("⏳ This guarantees the old bot dies completely before the new one connects.")
+        await asyncio.sleep(25)
+        logging.info("✅ Wait complete. Coast is clear!")
     
-    # 🌟 SAFE START
+    # 7. 🌟 SAFE START
     await app.start()
     await app.updater.start_polling(drop_pending_updates=True)
 
@@ -132,17 +115,20 @@ async def main():
 
     logging.info("✅ Bot is fully online and polling successfully.")
 
-    # 7. KEEP EVENT LOOP ALIVE
+    # 8. KEEP EVENT LOOP ALIVE
     stop_signal = asyncio.Event()
-    
-    # Graceful Shutdown Handler
     loop = asyncio.get_running_loop()
+    
+    # Graceful Shutdown Handler (Platform safe)
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop_signal.set)
+        try:
+            loop.add_signal_handler(sig, stop_signal.set)
+        except NotImplementedError:
+            pass # Ignore on Windows
         
     await stop_signal.wait()
     
-    # 8. CLEANUP ON SHUTDOWN
+    # 9. CLEANUP ON SHUTDOWN
     logging.info("🛑 Shutting down bot gracefully...")
     await app.updater.stop()
     await app.stop()

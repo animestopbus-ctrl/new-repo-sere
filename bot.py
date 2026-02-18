@@ -36,7 +36,6 @@ async def startup_setup(app):
     except: pass
 
     await db.setup_ttl_index()
-    await pyro_client.start()
     logging.info("✅ Pyrogram MTProto Client Started")
     
     # Start web server immediately so Render marks deploy as successful
@@ -108,3 +107,4 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(script.callback_router))
     
     app.run_polling()
+

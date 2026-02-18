@@ -1,12 +1,12 @@
 import logging
-import random
 import datetime
 import asyncio
 import os
-import time
+import signal
 from telegram import BotCommand
 from telegram.constants import ParseMode 
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.error import Conflict
 
 import secret
 import script
@@ -15,11 +15,29 @@ from database.db import db
 from filetolink.server import start_web_server 
 from filetolink.stream import pyro_client 
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO, handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()])
+# ================= LOGGING SETUP =================
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
+    level=logging.INFO, 
+    handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()]
+)
 logging.getLogger("httpx").setLevel(logging.WARNING) 
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
-async def startup_setup(app):
+# ================= MAIN ASYNC ENGINE =================
+async def main():
+    print("🚀 TITANIUM 39.0 (4GB STREAMING ENGINE ONLINE).")
+    
+    # 1. BOOT WEB SERVER IMMEDIATELY
+    # This tells Render "I am healthy!" so Render begins killing the old bot instance.
+    asyncio.create_task(start_web_server())
+    
+    # 2. INITIALIZE DATABASE
+    await db.setup_ttl_index()
+
+    # 3. BUILD TELEGRAM APP
+    app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).build()
+    
     menu_commands = [
         BotCommand("start", "⚡ Boot up the engine"),
         BotCommand("settings", "⚙️ Account dashboard & limits"),
@@ -32,46 +50,8 @@ async def startup_setup(app):
         BotCommand("set_caption", "💎 Set custom caption"),
         BotCommand("panel", "👑 [Admin] Open Dashboard")
     ]
-    try: await app.bot.set_my_commands(menu_commands)
-    except: pass
-
-    await db.setup_ttl_index()
-    logging.info("✅ Pyrogram MTProto Client Started")
     
-    # Start web server immediately so Render marks deploy as successful
-    asyncio.create_task(start_web_server())
-
-    # 🔥 THE ULTIMATE CONFLICT FIX: Wait for the old Render instance to release the polling lock
-    import httpx
-    url = f"https://api.telegram.org/bot{secret.BOT_TOKEN}/getUpdates"
-    logging.info("⏳ Securing Telegram Polling Lock...")
-    while True:
-        try:
-            async with httpx.AsyncClient() as client:
-                res = await client.get(url, timeout=5)
-                data = res.json()
-                if not data.get("ok") and data.get("error_code") == 409:
-                    logging.warning("⚠️ Conflict detected. Old Render instance still running. Waiting 5 seconds...")
-                    await asyncio.sleep(5)
-                else:
-                    logging.info("✅ Telegram Polling Lock Secured! Starting Bot Engine...")
-                    break
-        except Exception as e:
-            logging.error(f"Lock check error: {e}")
-            await asyncio.sleep(5)
-
-    if secret.LOG_CHANNEL_ID:
-        try:
-            platform = "Heroku" if "WEB_URL" in os.environ else ("Render" if "RENDER" in os.environ else "Local")
-            msg = f"🚀 <b>BOT ENGINE INITIATED</b>\n\n<blockquote>🤖 <b>Bot Name:</b> @{app.bot.username}\n🌍 <b>Hosted On:</b> {platform}\n🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n⚙️ <b>Workers:</b> {secret.WORKERS} Active</blockquote>"
-            await app.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=msg, parse_mode=ParseMode.HTML, disable_notification=True)
-        except: pass
-
-if __name__ == '__main__':
-    print("🚀 TITANIUM 39.0 (4GB STREAMING ENGINE ONLINE).")
-    
-    app = ApplicationBuilder().token(secret.BOT_TOKEN).connection_pool_size(secret.WORKERS).concurrent_updates(True).post_init(startup_setup).build()
-    
+    # 4. REGISTER HANDLERS
     app.add_handler(CommandHandler("start", script.start))
     app.add_handler(CommandHandler("help", script.help_cmd))
     app.add_handler(CommandHandler("info", script.info_cmd))
@@ -106,5 +86,54 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
     
-    app.run_polling()
+    # 5. INITIALIZE APP
+    await app.initialize()
+    try:
+        await app.bot.set_my_commands(menu_commands)
+    except Exception:
+        pass
+    await app.start()
 
+    # Log Startup to Channel
+    if secret.LOG_CHANNEL_ID:
+        try:
+            platform = "Heroku" if "WEB_URL" in os.environ else ("Render" if "RENDER" in os.environ else "Local")
+            msg = f"🚀 <b>BOT ENGINE INITIATED</b>\n\n<blockquote>🤖 <b>Bot Name:</b> @{app.bot.username}\n🌍 <b>Hosted On:</b> {platform}\n🕒 <b>Time:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} IST\n⚙️ <b>Workers:</b> {secret.WORKERS} Active</blockquote>"
+            await app.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=msg, parse_mode=ParseMode.HTML, disable_notification=True)
+        except: pass
+
+    # 6. 🔥 THE ULTIMATE CONFLICT FIX 🔥
+    logging.info("⏳ Securing Telegram Polling Lock...")
+    while True:
+        try:
+            await app.updater.start_polling(drop_pending_updates=True)
+            logging.info("✅ Telegram Polling Lock Secured! Bot is fully online.")
+            break # Success! Break out of the loop.
+        except Conflict:
+            logging.warning("⚠️ Conflict detected! Old Render instance is currently dying. Waiting 5 seconds...")
+            await asyncio.sleep(5)
+        except Exception as e:
+            logging.error(f"Unexpected Polling Error: {e}")
+            await asyncio.sleep(5)
+
+    # 7. KEEP EVENT LOOP ALIVE
+    stop_signal = asyncio.Event()
+    
+    # Graceful Shutdown Handler
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop_signal.set)
+        
+    await stop_signal.wait()
+    
+    # 8. CLEANUP ON SHUTDOWN
+    logging.info("🛑 Shutting down bot gracefully...")
+    await app.updater.stop()
+    await app.stop()
+    await app.shutdown()
+
+if __name__ == '__main__':
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nBot stopped by user.")

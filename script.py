@@ -217,7 +217,7 @@ def get_main_menu_markup():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("📚 How to Use", callback_data="help_menu", api_kwargs={"style": "danger"}), InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu", api_kwargs={"style": "success"})],
-        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "secondary"})],
+        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "primary"})],
         # 🔥 DEVELOPER BUTTON: Bottom, Center, Single Line
         [InlineKeyboardButton("👨‍💻 Developer", web_app=WebAppInfo(url="https://github.com/LastPerson07"))]
     ])
@@ -613,3 +613,4 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "main_menu":
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=START_TEXT.format(name=esc(update.effective_user.first_name)), parse_mode=ParseMode.HTML), reply_markup=get_main_menu_markup())
         except BadRequest: pass
+

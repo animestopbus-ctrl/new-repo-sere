@@ -4,6 +4,7 @@ from aiohttp import web
 from database.db import db
 
 # Import the Pyrogram handlers
+from filetolink.stream import pyro_client
 from filetolink.download import handle_download
 from filetolink.stream import handle_stream
 
@@ -496,6 +497,22 @@ async def stream_route(request):
 async def start_web_server():
     app = web.Application()
     app.add_routes(routes)
+
+    # 👇 ADD YOUR STARTUP & CLEANUP HOOKS HERE 👇
+    async def on_startup(app):
+        if not pyro_client.is_connected:
+            await pyro_client.start()
+            logging.info("✅ Pyrogram Client Started via Web Server")
+
+    async def on_cleanup(app):
+        if pyro_client.is_connected:
+            await pyro_client.stop()
+            logging.info("🛑 Pyrogram Client gracefully stopped")
+
+    app.on_startup.append(on_startup)
+    app.on_cleanup.append(on_cleanup)
+    # 👆 ===================================== 👆
+
     runner = web.AppRunner(app)
     await runner.setup()
     
@@ -503,3 +520,4 @@ async def start_web_server():
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
     logging.info(f"🌐 Web Server running on port {port}")
+

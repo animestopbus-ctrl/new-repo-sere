@@ -85,6 +85,10 @@ async def main():
     app.add_handler(CommandHandler("restart", admin.restart_cmd))
     app.add_handler(CommandHandler("update", admin.update_bot_cmd))
     app.add_handler(CommandHandler("maintenance", admin.maintenance_cmd))
+    # Maintenance & Cleanup Handlers
+    app.add_handler(CommandHandler("kill", cleanup.kill_cmd))
+    app.add_handler(CommandHandler("cleanram", cleanup.cleanram_cmd))
+    app.add_handler(CallbackQueryHandler(cleanup.cleanup_callback, pattern=r"^(kill_|ram_|close_ui)"))
     
     app.add_handler(CallbackQueryHandler(admin.admin_callback, pattern=r"^(admin_|cmd_help_)"))
     app.add_handler(CallbackQueryHandler(script.callback_router))
@@ -140,4 +144,5 @@ if __name__ == '__main__':
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\nBot stopped by user.")
+
 

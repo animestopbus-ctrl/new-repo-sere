@@ -72,8 +72,7 @@ async def handle_download(request: web.Request) -> web.StreamResponse:
             workers=worker_count,       # Apply our smart worker logic
             # Render Free Tier Safety Settings:
             chunk_size=1024 * 1024,     # 1MB Chunks (Perfect balance)
-            batch_chunks=5,             # Fetch 5MB at a time
-            max_buffer_chunks=12,       # 🔥 CHANGED TO 12 TO PREVENT RAM CRASHES
+            # batch_chunks removed as it's not in the new simple TurboStreamer
         )
 
         async for chunk in streamer.generate():

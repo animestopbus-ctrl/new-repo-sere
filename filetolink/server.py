@@ -2,19 +2,15 @@ import os
 import logging
 from aiohttp import web
 from database.db import db
-
 # Import the Pyrogram handlers
 from filetolink.stream import pyro_client
 from filetolink.download import handle_download
 from filetolink.stream import handle_stream
-
 routes = web.RouteTableDef()
-
 def get_domain(request):
     """Safely detects if running on Render, Heroku, or Localhost in AIOHTTP"""
     fallback = f"{request.scheme}://{request.host}"
     return os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", fallback)).rstrip('/')
-
 # ================= REDESIGNED HTML UI (FROM YOUR REQ.HTML) =================
 # Using raw string (r"") to prevent Python escape sequence bugs
 HTML_TEMPLATE = r"""<!DOCTYPE html>
@@ -23,13 +19,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>THE UPDATED GUYS | {{FILE_NAME}}</title>
-
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
-
     <style>
         :root {
             --bg-primary: rgb(2, 6, 23);
@@ -46,10 +40,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             --border-subtle: rgba(255, 255, 255, 0.05);
             --border-normal: rgba(255, 255, 255, 0.1);
         }
-
         .plyr__control .lucide { fill: none !important; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
             font-family: "Inter", sans-serif;
             background: linear-gradient(to bottom, var(--bg-primary), #0a0e1a);
@@ -57,63 +49,51 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             min-height: 100vh;
             line-height: 1.6;
         }
-
         .header {
             position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
             background: var(--bg-glass-dark); backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--border-subtle);
         }
-
         .header-content {
             max-width: 1100px; margin: 0 auto; padding: 1rem 1.5rem;
             display: flex; align-items: center; justify-content: space-between;
         }
-
         .logo {
             font-family: "JetBrains Mono", monospace; font-size: 1.5rem; font-weight: 800;
             background: linear-gradient(135deg, var(--accent-rose), var(--accent-amber));
             -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
             text-decoration: none; display: inline-block;
         }
-
         .nav { display: flex; gap: 2rem; }
         .nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: color 0.2s; }
         .nav a:hover { color: var(--accent-rose); }
         .mobile-menu { display: none; background: none; border: none; color: var(--text-primary); cursor: pointer; }
-
         .slogan { text-align: center; padding: 6.5rem 1.5rem 0.5rem; font-size: 1rem; font-weight: 600; letter-spacing: 0.5px; }
         .slogan-text { color: var(--text-secondary); }
         .slogan-highlight { background: linear-gradient(135deg, var(--accent-rose), var(--accent-amber)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-
         .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
-
         .player-wrapper {
             margin-bottom: 1.5rem; border-radius: 16px; overflow: hidden;
             background: var(--bg-secondary); border: 1px solid var(--border-subtle);
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
         }
-
         .video-container { position: relative; width: 100%; padding-bottom: 56.25%; background: #000; overflow: hidden; }
         .video-container video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
         .video-container .plyr { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-
         .info-card {
             background: var(--bg-glass); backdrop-filter: blur(20px);
             border: 1px solid var(--border-subtle); border-radius: 12px;
             padding: 1.75rem; margin-bottom: 1.5rem;
         }
-
         .file-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1rem; line-height: 1.4; word-break: break-word; }
         .file-meta { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
         .meta-tag { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.875rem; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 6px; color: var(--accent-rose); font-size: 0.8125rem; font-weight: 600; }
-
         .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
         .btn { display: flex; align-items: center; justify-content: center; gap: 0.625rem; padding: 0.875rem 1.25rem; background: var(--bg-secondary); border: 1px solid var(--border-normal); border-radius: 8px; color: var(--text-primary); font-size: 0.875rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s; }
         .btn:hover { background: rgba(244, 63, 94, 0.1); border-color: var(--accent-rose); transform: translateY(-1px); }
         .btn-primary { background: linear-gradient(135deg, var(--accent-rose), rgb(225, 29, 72)); border-color: transparent; }
         .btn-primary:hover { box-shadow: 0 8px 20px rgba(244, 63, 94, 0.3); }
         .btn svg, .btn img { width: 18px; height: 18px; }
-
         .dropdown { position: relative; }
         .dropdown-menu {
             position: absolute; bottom: calc(100% + 0.5rem); right: 0; min-width: 200px; max-width: 280px; max-height: 60vh; overflow-y: auto;
@@ -125,7 +105,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         .player-link { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.625rem; background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.8125rem; font-weight: 500; transition: all 0.2s; }
         .player-link img { width: 16px; height: 16px; flex-shrink: 0; }
         .player-link:hover { background: rgba(244, 63, 94, 0.1); border-color: var(--accent-rose); color: var(--accent-rose); }
-
         .cards-section { margin: 3rem 0; }
         .section-header { text-align: center; margin-bottom: 2.5rem; }
         .section-title { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--accent-rose), var(--accent-amber)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -140,10 +119,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         .card-links { display: flex; flex-direction: column; gap: 0.5rem; }
         .card-link { display: flex; align-items: center; justify-content: space-between; padding: 0.625rem 0.875rem; background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); text-decoration: none; font-size: 0.8125rem; font-weight: 500; transition: all 0.2s; }
         .card-link:hover { background: rgba(244, 63, 94, 0.1); border-color: var(--accent-rose); color: var(--accent-rose); }
-
         .footer { text-align: center; padding: 2.5rem 1.5rem; border-top: 1px solid var(--border-subtle); color: var(--text-muted); font-size: 0.875rem; }
         .footer a { color: var(--accent-rose); text-decoration: none; font-weight: 600; }
-
         .plyr { --plyr-color-main: rgb(244, 63, 94); border-radius: 0 0 16px 16px; }
         .plyr__control { color: white; }
         .plyr__control:hover { background: rgba(244, 63, 94, 0.2); }
@@ -152,13 +129,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         .plyr__menu__container .plyr__control { color: var(--text-primary); }
         .plyr__menu__container .plyr__control:hover { background: rgba(244, 63, 94, 0.1); }
         .plyr__menu__container .plyr__control[role="menuitemradio"][aria-checked="true"]::before { background: var(--accent-rose); }
-
         .aspect-dropdown { position: absolute; bottom: calc(100% + 10px); right: 0; min-width: 180px; background: var(--bg-glass-dark); backdrop-filter: blur(20px); border: 1px solid var(--border-normal); border-radius: 8px; padding: 0.5rem; opacity: 0; visibility: hidden; transform: translateY(10px); transition: all 0.2s; z-index: 1000; }
         .aspect-dropdown.active { opacity: 1; visibility: visible; transform: translateY(0); }
         .aspect-item { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 0.8125rem; transition: all 0.2s; }
         .aspect-item:hover { background: rgba(244, 63, 94, 0.1); color: var(--accent-rose); }
         .aspect-item.active { background: rgba(244, 63, 94, 0.2); color: var(--accent-rose); }
-
         @media (max-width: 768px) {
             .nav { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-glass-dark); flex-direction: column; padding: 1rem; gap: 1rem; border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(20px); z-index: 999; animation: slideDown 0.3s ease-out; }
             .nav.active { display: flex; }
@@ -194,7 +169,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             .volume-slider-container { height: 80px; }
             .volume-slider { width: 80px !important; margin-top: 38px !important; }
         }
-
         button[data-plyr="volume-custom"] { display: flex !important; align-items: center; justify-content: center; height: auto; position: relative; }
         .audio-warning { position: static; background: transparent; color: rgb(251, 191, 36); padding: 12px 16px; border-radius: 8px; font-size: 0.875rem; font-weight: 500; display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 1.5rem 0; text-align: center; }
         .audio-warning svg { margin-top: 3px; }
@@ -214,7 +188,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </style>
 </head>
 <body>
-
     <header class="header">
         <div class="header-content">
             <a href="https://t.me/THEUPDATEDGUYS" class="logo"> THE UPDATED GUYS </a>
@@ -232,11 +205,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             </button>
         </div>
     </header>
-
     <div class="slogan">
         <span class="slogan-text">Stream Effortlessly,</span> <span class="slogan-highlight">Anytime, Anywhere</span>
     </div>
-
     <div class="container">
         <section id="video-section" class="fade-in">
             <div class="player-wrapper">
@@ -246,7 +217,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                     </video>
                 </div>
             </div>
-
             <div class="info-card">
                 <h1 class="file-title">{{FILE_NAME}}</h1>
                 <div class="file-meta">
@@ -258,7 +228,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                         Now Streaming
                     </span>
                 </div>
-
                 <div class="actions">
                     <button class="btn btn-primary" onclick="blazeDownload()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -276,7 +245,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                         <img src="https://i.postimg.cc/sx4Msv4T/mx.png" alt="MX" />
                         MX Player
                     </button>
-
                     <div class="dropdown">
                         <button class="btn" onclick="toggleDropdown()">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -310,7 +278,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                 </div>
             </div>
         </section>
-
         <section id="explore" class="cards-section">
             <div class="section-header">
                 <h2 class="section-title">Explore Our Universe</h2>
@@ -354,22 +321,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             </div>
         </section>
     </div>
-
     <footer class="footer">
         <p>&copy; 2026 <a href="https://t.me/THEUPDATEDGUYS">THE UPDATED GUYS</a>. All Rights Reserved.</p>
     </footer>
-
     <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/Bharathboy/utils@main/jsmkv-polyfill.js"></script>
-
     <script>
         function initPlayer() {
             const video = document.querySelector("#player");
             if (!video) return;
             const url = "{{STREAM_URL}}";
             const ext = "{{FILE_NAME}}".split('.').pop().toLowerCase();
-            
+           
             if (ext === "mkv" && document.querySelector('script[src*="jsmkv"]')) {
                 video.classList.add("mkv-player");
                 setTimeout(() => initPlyr(video), 100);
@@ -379,14 +343,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                 setTimeout(() => initPlyr(video), 100);
             }
         }
-
         function initPlyr(video) {
             if (window.plyrPlayer) return;
             window.plyrPlayer = new Plyr(video, {
                 controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "pip", "fullscreen"],
             });
         }
-
         function initMpegts(video, url) {
             try {
                 const player = mpegts.createPlayer({ type: "flv", url, isLive: false });
@@ -398,18 +360,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                 initPlyr(video);
             }
         }
-
         function toggleDropdown() {
             document.getElementById("players-dropdown").classList.toggle("active");
         }
-
         function blazeDownload() {
             const a = document.createElement("a");
             a.href = "{{DL_URL}}";
             a.download = "{{FILE_NAME}}";
             a.click();
         }
-
         function vlc_player() {
             const url = "{{STREAM_URL}}";
             const stripped = url.replace(/^https?:\/\//, "");
@@ -418,34 +377,27 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                 window.location.href = `intent:${url}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end`;
             }, 500);
         }
-
         function mx_player() {
             window.location.href = "intent:{{STREAM_URL}}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end";
         }
-
         function playit_player() {
             window.location.href = "playit://playerv2/video?url={{STREAM_URL}}";
         }
-
         function km_player() {
             window.location.href = "intent:{{STREAM_URL}}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.kmplayer;end";
         }
-
         function s_player() {
             window.location.href = "intent:{{STREAM_URL}}#Intent;action=com.young.simple.player.playback_online;package=com.young.simple.player;end";
         }
-
         function hd_player() {
             window.location.href = "intent:{{STREAM_URL}}#Intent;action=android.intent.action.VIEW;type=video/*;package=uplayer.video.player;end";
         }
-
         document.addEventListener("click", (e) => {
             if (!e.target.closest(".dropdown")) {
                 const pd = document.getElementById("players-dropdown");
                 if (pd) pd.classList.remove("active");
             }
         });
-
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", initPlayer);
         } else {
@@ -454,65 +406,72 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </script>
 </body>
 </html>"""
-
 # 🟢 Keep-Alive Route
 @routes.get('/')
 async def alive(request):
     return web.Response(text="🟢 Titanium 4GB Modular Web Server is Online!")
-
 # 🎬 The Video Player Webpage
 @routes.get('/watch/{hash_id}')
 async def watch_page(request):
-    hash_id = request.match_info['hash_id']
-    link_data = await db.get_link(hash_id)
+    try:
+        hash_id = request.match_info['hash_id']
+        link_data = await db.get_link(hash_id)
     
-    if not link_data:
-        return web.Response(text="<h1>❌ 404 - Link Expired</h1><p>The self-destruct timer has triggered.</p>", content_type='text/html', status=404)
+        if not link_data:
+            return web.Response(text="<h1>❌ 404 - Link Expired</h1><p>The self-destruct timer has triggered.</p>", content_type='text/html', status=404)
     
-    file_name = link_data.get('file_name', 'Unknown_Video.mp4')
-    domain = get_domain(request)
+        file_name = link_data.get('file_name', 'Unknown_Video.mp4')
+        domain = get_domain(request)
     
-    # 🔥 FIX: Route perfectly back to our pure MTProto Turbo Streamer instead of local HLS
-    stream_url = f"{domain}/stream/{hash_id}"
-    dl_url = f"{domain}/dl/{hash_id}"
-
-    # Safely inject the variables
-    html = HTML_TEMPLATE.replace('{{FILE_NAME}}', file_name) \
-                        .replace('{{STREAM_URL}}', stream_url) \
-                        .replace('{{DL_URL}}', dl_url)
-
-    return web.Response(text=html, content_type='text/html')
-
+        # 🔥 FIX: Route perfectly back to our pure MTProto Turbo Streamer instead of local HLS
+        stream_url = f"{domain}/stream/{hash_id}"
+        dl_url = f"{domain}/dl/{hash_id}"
+        # Safely inject the variables
+        html = HTML_TEMPLATE.replace('{{FILE_NAME}}', file_name) \
+                            .replace('{{STREAM_URL}}', stream_url) \
+                            .replace('{{DL_URL}}', dl_url)
+        return web.Response(text=html, content_type='text/html')
+    except Exception as e:
+        logging.error(f"Error in watch_page: {e}")
+        return web.Response(text="<h1>500 Internal Server Error</h1><p>Something went wrong.</p>", content_type='text/html', status=500)
 # 📥 Route Traffic to download.py
 @routes.get('/dl/{hash_id}')
 async def download_route(request):
-    return await handle_download(request)
-
+    try:
+        return await handle_download(request)
+    except Exception as e:
+        logging.error(f"Error in download_route: {e}")
+        return web.Response(text="<h1>500 Internal Server Error</h1><p>Something went wrong.</p>", content_type='text/html', status=500)
 # 🚀 Route Traffic to stream.py
 @routes.get('/stream/{hash_id}')
 async def stream_route(request):
-    return await handle_stream(request)
-
+    try:
+        return await handle_stream(request)
+    except Exception as e:
+        logging.error(f"Error in stream_route: {e}")
+        return web.Response(text="<h1>500 Internal Server Error</h1><p>Something went wrong.</p>", content_type='text/html', status=500)
 # ⚙️ Start the Server
 async def start_web_server():
     app = web.Application()
     app.add_routes(routes)
-
     # 👇 ADD YOUR STARTUP & CLEANUP HOOKS HERE 👇
     async def on_startup(app):
-        if not pyro_client.is_connected:
-            await pyro_client.start()
-            logging.info("✅ Pyrogram Client Started via Web Server")
-
+        try:
+            if not pyro_client.is_connected:
+                await pyro_client.start()
+                logging.info("✅ Pyrogram Client Started via Web Server")
+        except Exception as e:
+            logging.error(f"Failed to start Pyrogram: {e}")
     async def on_cleanup(app):
-        if pyro_client.is_connected:
-            await pyro_client.stop()
-            logging.info("🛑 Pyrogram Client gracefully stopped")
-
+        try:
+            if pyro_client.is_connected:
+                await pyro_client.stop()
+                logging.info("🛑 Pyrogram Client gracefully stopped")
+        except Exception as e:
+            logging.error(f"Failed to stop Pyrogram: {e}")
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
     # 👆 ===================================== 👆
-
     runner = web.AppRunner(app)
     await runner.setup()
     
@@ -520,4 +479,3 @@ async def start_web_server():
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
     logging.info(f"🌐 Web Server running on port {port}")
-

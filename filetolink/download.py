@@ -1,10 +1,8 @@
 import re
 import logging
-import aiohttp
 from aiohttp import web
 from database.db import db
-from filetolink.stream import pyro_client
-from filetolink.fast import ParallelStreamer # 🔥 Turbo Engine
+from filetolink.stream import pyro_client 
 
 async def handle_download(request):
     hash_id = request.match_info['hash_id']
@@ -51,21 +49,33 @@ async def handle_download(request):
         response = web.StreamResponse(status=206 if range_header else 200, headers=headers)
         await response.prepare(request)
         
-        streamer = ParallelStreamer(pyro_client, message, offset, limit, workers=15, prefetch_mb=50)
-        
-        # 🔥 FIX: Correct Exception handling for IDM Resumes
+        chunk_size = 1048576
+        first_part_cut = offset % chunk_size
+        first_chunk_no = offset // chunk_size
+        bytes_to_send = req_length
+
         try:
-            async for chunk in streamer.generate():
+            # 🚀 NATIVE PIPELINE: Fully IDM Compatible
+            async for chunk in pyro_client.stream_media(message, offset=first_chunk_no):
+                if first_part_cut:
+                    chunk = chunk[first_part_cut:]
+                    first_part_cut = 0
+                    
+                if len(chunk) > bytes_to_send:
+                    chunk = chunk[:bytes_to_send]
+                    
                 await response.write(chunk)
-        except (ConnectionResetError, aiohttp.ClientPayloadError):
-            pass
+                
+                bytes_to_send -= len(chunk)
+                if bytes_to_send <= 0:
+                    break
         except Exception as e:
             if "closing transport" not in str(e) and "Connection lost" not in str(e):
-                logging.error(f"DL Write Error: {str(e)}")
+                logging.error(f"DL Write Error: {e}")
                 
         return response
 
     except Exception as e:
         if "closing transport" not in str(e) and "Connection lost" not in str(e):
-            logging.error(f"DL Error: {str(e)}")
+            logging.error(f"DL Error: {e}")
         return web.Response(status=500)

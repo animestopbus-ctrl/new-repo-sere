@@ -242,13 +242,13 @@ async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>👤 <b>Your User ID:</b> <code>{update.effective_user.id}</code>\n💬 <b>Chat ID:</b> <code>{update.effective_chat.id}</code></blockquote>"
+    text = f"<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n<blockquote>👤 <b>Your User ID:</b> <code>{update.effective_user.id}</code>\n💬 <b>Chat ID:</b> <code>{update.effective_chat.id}</code></blockquote>"
     await safe_reply(update.message, text, parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<blockquote>🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}</blockquote>"
+    text = f"<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n<blockquote>🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}</blockquote>"
     await safe_reply(update.message, text, parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
 async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -316,8 +316,20 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 39.0 Pro (MTProto 4GB Streaming)\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot & Pyrogram\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
-    markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})]])
+    info_text = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
+
+🤖 <b>About This Bot</b>
+
+I’m built to help you rename, organize, and share your media smoothly — fast, reliable, and easy to use.
+
+<blockquote>🟢 <b>Version:</b> v2.1.1  
+👨‍💻 <b>Developer:</b> <a href="https://t.me/DmOwner">@Ⓜ️ark</a>  
+🐍 <b>Language:</b> <a href="https://www.python.org">Python</a>  
+🗄️ <b>Database:</b> <a href="https://www.mongodb.com">MongoDB</a></blockquote>
+
+<i>Need help, have feedback, or looking for a custom bot? <a href="https://t.me/DmOwner">Contact the developer</a>.</i>"""
+
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/DmOwner", api_kwargs={"style": "primary"})]])
     img = await get_img()
     sent_msg = await update.message.reply_photo(photo=img, caption=info_text, parse_mode=ParseMode.HTML, reply_markup=markup)
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("ℹ️"), is_big=True)
@@ -331,8 +343,8 @@ async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user_data: return await update.message.reply_text("❌ Please send /start first to register your account.")
     is_prem = user_data.get('is_premium', False)
     status = "💎 PREMIUM VIP" if is_prem else "🆓 FREE TIER"
-    text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0) if user_data else 0}/10 Files\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0) if user_data else 0} Files\n📝 <b>Caption:</b> {esc(user_data.get('caption', 'None (Default)') if user_data else 'None')}</blockquote>"
-    markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
+    text = f"<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0) if user_data else 0}/10 Files\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0) if user_data else 0} Files\n📝 <b>Caption:</b> {esc(user_data.get('caption', 'None (Default)') if user_data else 'None')}</blockquote>"
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/DmOwner", api_kwargs={"style": "success"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
     img = await get_img()
     sent_msg = await update.message.reply_photo(photo=img, caption=text, parse_mode=ParseMode.HTML, reply_markup=markup)
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("⚙️"), is_big=True)
@@ -548,12 +560,12 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await db.save_link(file_hash, chat_id, message_id, file_name, size, expires_at)
         
         link_text = (
-            f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n"
-            f"✅ <b>LINKS GENERATED SUCCESSFULLY</b>\n\n"
+            f"<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n"
+            f"✅ <b>Your links are ready!</b>\n\n"
             f"<blockquote>🎬 <b>File:</b> <code>{esc(file_name)}</code>\n"
             f"💾 <b>Size:</b> <code>{esc(size)}</code>\n"
-            f"⏳ <b>Valid For:</b> {hours} Hours</blockquote>\n\n"
-            f"<i>⚠️ Do not share these links. They will auto-delete.</i>"
+            f"⏳ <b>Expires In:</b> {hours} hours</blockquote>\n\n"
+            f"<i>⚠️ These links are temporary and will expire automatically. Please avoid sharing them.</i>"
         )
         
         # 🔥 BUG FIX: Edit the original message to remove the "Generate Links" button
@@ -565,8 +577,20 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
         except BadRequest: pass
     elif data == "info_menu":
-        info_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n🤖 <b>ABOUT TITANIUM ENGINE</b>\n\nI am a state-of-the-art Media AI built for massive speed and precision.\n\n<blockquote>🟢 <b>Version:</b> 39.0 Pro (MTProto 4GB Streaming)\n👨‍💻 <b>Developer:</b> LastPerson07\n📚 <b>Framework:</b> Python Telegram Bot & Pyrogram\n🗄️ <b>Database:</b> MongoDB Async</blockquote>\n\n<i>For business inquiries or custom bot development, contact the owner.</i>"
-        markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/LastPerson07", api_kwargs={"style": "primary"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
+        info_text = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
+
+🤖 <b>About This Bot</b>
+
+I’m built to help you rename, organize, and share your media smoothly — fast, reliable, and easy to use.
+
+<blockquote>🟢 <b>Version:</b> v2.1.1  
+👨‍💻 <b>Developer:</b> <a href="https://t.me/DmOwner">@Ⓜ️ark</a>  
+🐍 <b>Language:</b> <a href="https://www.python.org">Python</a>  
+🗄️ <b>Database:</b> <a href="https://www.mongodb.com">MongoDB</a></blockquote>
+
+<i>Need help, have feedback, or looking for a custom bot? <a href="https://t.me/DmOwner">Contact the developer</a>.</i>"""
+
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/DmOwner", api_kwargs={"style": "primary"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=info_text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
     elif data == "settings_menu":
@@ -574,8 +598,8 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data = await db.col.find_one({'id': int(user_id)})
         is_prem = user_data.get('is_premium', False) if user_data else False
         status = "💎 PREMIUM VIP" if is_prem else "🆓 FREE TIER"
-        text = f"<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0) if user_data else 0}/10 Files\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0) if user_data else 0} Files\n📝 <b>Caption:</b> {esc(user_data.get('caption', 'None (Default)') if user_data else 'None')}</blockquote>"
-        markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/LastPerson07", api_kwargs={"style": "success"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
+        text = f"<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n⚙️ <b>YOUR ACCOUNT DASHBOARD</b>\n\n<blockquote>👤 <b>ID:</b> <code>{user_id}</code>\n📊 <b>Tier:</b> {status}\n📈 <b>Daily Limit:</b> {user_data.get('daily_usage', 0) if user_data else 0}/10 Files\n📁 <b>Total Lifetime:</b> {user_data.get('files_processed', 0) if user_data else 0} Files\n📝 <b>Caption:</b> {esc(user_data.get('caption', 'None (Default)') if user_data else 'None')}</blockquote>"
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", url="https://t.me/DmOwner", api_kwargs={"style": "success"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=text, parse_mode=ParseMode.HTML), reply_markup=markup)
         except BadRequest: pass
     elif data == "main_menu":

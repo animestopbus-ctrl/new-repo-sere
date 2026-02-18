@@ -18,10 +18,13 @@ import secret
 from database.db import db
 import admin
 from filetolink import timer
-import fsub # 🔥 NEW FSUB ENGINE IMPORT
+import fsub 
 
 # 🔥 DYNAMIC DOMAIN ENGINE
 DOMAIN = os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", "https://new-repo-sere.onrender.com")).rstrip('/')
+
+# 🛡️ ANTI-SPAM CACHE (Memory)
+SPAM_CACHE = {}
 
 # ================= UTILITIES =================
 async def get_img():
@@ -186,12 +189,20 @@ def get_main_menu_markup():
 def get_help_menu_markup():
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu", api_kwargs={"style": "danger"})]])
 
-def get_media_markup(title):
+# 🔥 BUG FIX: Self-Locking Button System added here
+def get_media_markup(title, is_generated=False):
     imdb_url = f"https://www.imdb.com/find/?q={requests.utils.quote(title.replace(' ', '+'))}"
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔗 Generate Direct Links", callback_data="ask_timer", api_kwargs={"style": "primary"})],
-        [InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "danger"}), InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "success"})]
-    ])
+    buttons = []
+    
+    # If links are generated, turn the button gray and disable it.
+    if not is_generated:
+        buttons.append([InlineKeyboardButton("🔗 Generate Direct Links", callback_data="ask_timer", api_kwargs={"style": "primary"})])
+    else:
+        buttons.append([InlineKeyboardButton("✅ Links Generated Below", callback_data="ignore", api_kwargs={"style": "danger"})])
+        
+    buttons.append([InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "danger"}), InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "success"})])
+    
+    return InlineKeyboardMarkup(buttons)
 
 def get_timer_markup():
     return InlineKeyboardMarkup([
@@ -266,7 +277,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_new = await db.add_user(user.id, user.first_name, user.username)
     if is_new: await send_recon_log(user, context)
     
-    # 🔥 FSUB INTEGRATION: Blocks access natively on Start
     if not await fsub.is_user_subscribed(context.bot, user.id):
         img = await get_img()
         sent_msg = await update.message.reply_photo(
@@ -374,7 +384,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await db.get_maintenance() and user.id != secret.ADMIN_ID:
         return await msg.reply_text("🚧 <b>MAINTENANCE MODE</b>\n\n<blockquote>The bot is currently undergoing upgrades. Please try again later.</blockquote>", parse_mode=ParseMode.HTML)
 
-    # 🔥 FSUB INTEGRATION: Protects media generation
     if not await fsub.is_user_subscribed(context.bot, user.id):
         img = await get_img()
         sent_msg = await msg.reply_photo(
@@ -478,16 +487,27 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= CALLBACK ROUTER =================
 async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    
+    # 🔥 ANTI-SPAM LOGIC: Silently reject rapid double-clicks
+    user_id = update.effective_user.id
+    now = time.time()
+    if query.data in ["ask_timer"] or query.data.startswith("timer_"):
+        if user_id in SPAM_CACHE and now - SPAM_CACHE[user_id] < 3:
+            return await query.answer("⚠️ Please wait a moment... do not spam!", show_alert=True)
+        SPAM_CACHE[user_id] = now
+
     await query.answer() 
     data = query.data
     img = await get_img()
+    
+    # Empty callback for the gray "Links Generated Below" button
+    if data == "ignore":
+        return
 
-    # 🔥 FSUB VERIFICATION LISTENER
     if data == "check_fsub":
         if await fsub.is_user_subscribed(context.bot, update.effective_user.id):
             await query.answer("✅ Verified! Welcome to the bot.", show_alert=True)
             await query.message.delete()
-            # Shows them the welcome menu instantly
             sent_msg = await context.bot.send_photo(
                 chat_id=query.message.chat.id,
                 photo=img, 
@@ -536,7 +556,9 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<i>⚠️ Do not share these links. They will auto-delete.</i>"
         )
         
-        await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
+        # 🔥 BUG FIX: Edit the original message to remove the "Generate Links" button
+        await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name, is_generated=True))
+        
         await safe_reply(query.message, text=link_text, parse_mode=ParseMode.HTML, reply_markup=get_url_markup(file_hash), disable_web_page_preview=True, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
 
     elif data == "help_menu":

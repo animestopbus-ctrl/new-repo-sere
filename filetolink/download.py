@@ -61,7 +61,20 @@ async def handle_download(request: web.Request) -> web.StreamResponse:
         # If request is huge (>10MB), it's a browser. Use 4 workers to force speed.
         worker_count = 1 if req_size < 10 * 1024 * 1024 else 4
 
-        streamer = TurboStreamer(pyro_client, message, offset, limit, workers=worker_count)
+        # -----------------------------
+        # TURBO STREAM ENGINE (RENDER SAFE TUNING)
+        # -----------------------------
+        streamer = TurboStreamer(
+            pyro_client,
+            message,
+            offset_bytes=offset,
+            limit_bytes=limit,
+            workers=worker_count,       # Apply our smart worker logic
+            # Render Free Tier Safety Settings:
+            chunk_size=1024 * 1024,     # 1MB Chunks (Perfect balance)
+            batch_chunks=5,             # Fetch 5MB at a time
+            max_buffer_chunks=12,       # 🔥 CHANGED TO 12 TO PREVENT RAM CRASHES
+        )
 
         async for chunk in streamer.generate():
             try:
@@ -69,7 +82,11 @@ async def handle_download(request: web.Request) -> web.StreamResponse:
             except Exception:
                 break # Client disconnected
 
-        await response.write_eof()
+        try:
+            await response.write_eof()
+        except Exception:
+            pass
+            
         return response
 
     except Exception as e:

@@ -316,18 +316,16 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-    info_text = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
-
-🤖 <b>About This Bot</b>
-
-I’m built to help you rename, organize, and share your media smoothly — fast, reliable, and easy to use.
-
-<blockquote>🟢 <b>Version:</b> v2.1.1  
-👨‍💻 <b>Developer:</b> <a href="https://t.me/DmOwner">@Ⓜ️ark</a>  
-🐍 <b>Language:</b> <a href="https://www.python.org">Python</a>  
-🗄️ <b>Database:</b> <a href="https://www.mongodb.com">MongoDB</a></blockquote>
-
-<i>Need help, have feedback, or looking for a custom bot? <a href="https://t.me/DmOwner">Contact the developer</a>.</i>"""
+    info_text = (
+        "<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n"
+        "🤖 <b>About This Bot</b>\n\n"
+        "I’m built to help you rename, organize, and share your media smoothly — fast, reliable, and easy to use.\n\n"
+        "<blockquote>🟢 <b>Version:</b> v2.1.1\n"
+        "👨‍💻 <b>Developer:</b> <a href=\"https://t.me/DmOwner\">@Ⓜ️ark</a>\n"
+        "🐍 <b>Language:</b> <a href=\"https://www.python.org\">Python</a>\n"
+        "🗄️ <b>Database:</b> <a href=\"https://www.mongodb.com\">MongoDB</a></blockquote>\n\n"
+        "<i>Need help, have feedback, or looking for a custom bot? <a href=\"https://t.me/DmOwner\">Contact the developer</a>.</i>"
+    )
 
     markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/DmOwner", api_kwargs={"style": "primary"})]])
     img = await get_img()
@@ -577,18 +575,16 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=secret.HELP_TEXT, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
         except BadRequest: pass
     elif data == "info_menu":
-        info_text = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
-
-🤖 <b>About This Bot</b>
-
-I’m built to help you rename, organize, and share your media smoothly — fast, reliable, and easy to use.
-
-<blockquote>🟢 <b>Version:</b> v2.1.1  
-👨‍💻 <b>Developer:</b> <a href="https://t.me/DmOwner">@Ⓜ️ark</a>  
-🐍 <b>Language:</b> <a href="https://www.python.org">Python</a>  
-🗄️ <b>Database:</b> <a href="https://www.mongodb.com">MongoDB</a></blockquote>
-
-<i>Need help, have feedback, or looking for a custom bot? <a href="https://t.me/DmOwner">Contact the developer</a>.</i>"""
+        info_text = (
+            "<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n"
+            "🤖 <b>About This Bot</b>\n\n"
+            "I’m built to help you rename, organize, and share your media smoothly — fast, reliable, and easy to use.\n\n"
+            "<blockquote>🟢 <b>Version:</b> v2.1.1\n"
+            "👨‍💻 <b>Developer:</b> <a href=\"https://t.me/DmOwner\">Ⓜ️ark</a>\n"
+            "🐍 <b>Language:</b> <a href=\"https://www.python.org\">Python</a>\n"
+            "🗄️ <b>Database:</b> <a href=\"https://www.mongodb.com\">MongoDB</a></blockquote>\n\n"
+            "<i>Need help, have feedback, or looking for a custom bot? <a href=\"https://t.me/DmOwner\">Contact the developer</a>.</i>"
+        )
 
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Contact Dev", url="https://t.me/DmOwner", api_kwargs={"style": "primary"})], [InlineKeyboardButton("⬅️ Back", callback_data="main_menu", api_kwargs={"style": "danger"})]])
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=info_text, parse_mode=ParseMode.HTML), reply_markup=markup)

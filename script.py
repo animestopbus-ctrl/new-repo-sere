@@ -18,59 +18,41 @@ import secret
 from database.db import db
 import admin
 from filetolink import timer
-import fsub 
-
+import fsub
 # 🔥 DYNAMIC DOMAIN ENGINE
 DOMAIN = os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", "https://new-repo-sere.onrender.com")).rstrip('/')
-
 # 🛡️ ANTI-SPAM CACHE (Memory)
 SPAM_CACHE = {}
-
 # ================= GLOBAL TEXT CONSTANTS (Fixes NameError) =================
 START_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
-
 Hey <b>{name}</b>! Welcome aboard ⚡️
 I’m here to make renaming, organizing, and sharing your media simple and hassle-free.
-
 <b>What I can do for you:</b>
 <blockquote>├ 🎬 <b>Accurate Details:</b> Fetches trusted IMDb & TMDB info.
 ├ 🔎 <b>Smart Detection:</b> Recognizes Anime, K-Dramas & Movies.
 ├ 🎧 <b>Media Analysis:</b> Identifies audio & quality.
 ├ 🔗 <b>File-to-Link:</b> Converts files to download links.
 ╰ 🖼 <b>Clean Results:</b> Keeps thumbnails intact.</blockquote>"""
-
 HELP_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
-
 🛠️ <b>How to Use</b>
-
 <blockquote>1️⃣ <b>Send or forward</b> any movie, series, or anime file.
-
 2️⃣ I’ll <b>clean unnecessary tags</b> and organize the filename.
-
 3️⃣ Then I search <b>trusted databases</b> to fetch details.
-
 4️⃣ Finally, you’ll receive a <b>renamed file</b> with thumbnails — and you can convert it to a link!</blockquote>"""
-
 INFO_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>
-
 🤖 <b>About This Bot</b>
-
 I’m built to help you rename, organize, and share your media smoothly.
-
 <blockquote>🟢 <b>Version:</b> v2.1.1
 👨‍💻 <b>Developer:</b> <a href="https://t.me/DmOwner">@Ⓜ️ark</a>
 🐍 <b>Language:</b> Python
 🗄️ <b>Database:</b> MongoDB</blockquote>"""
-
 # ================= UTILITIES =================
 async def get_img():
     db_img = await db.get_bot_image()
     return db_img if db_img else random.choice(secret.IMAGE_LINKS)
-
 def esc(text):
     if not text or str(text).lower() in ['none', 'nan', 'null']: return "N/A"
     return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
 def format_size(size_bytes):
     if size_bytes == 0: return "0B"
     size_name = ("B", "KB", "MB", "GB", "TB")
@@ -78,7 +60,6 @@ def format_size(size_bytes):
     p = math.pow(1024, i)
     s = round(size_bytes / p, 2)
     return f"{s} {size_name[i]}"
-
 def pre_clean_filename(filename):
     f = str(filename)
     f = re.sub(r'@[a-zA-Z0-9_]+', '', f)
@@ -87,19 +68,18 @@ def pre_clean_filename(filename):
     f = re.sub(r'\[.*?\]', '', f)
     f = re.sub(r'[\.\_]+', ' ', f)
     return f.strip()
-
 def detect_languages(filename, guessit_langs):
     found_langs = []
     fname_lower = filename.lower()
     is_esub = 'esub' in fname_lower or 'e-sub' in fname_lower
-    
+   
     if guessit_langs:
         if not isinstance(guessit_langs, list): guessit_langs = [guessit_langs]
         for l in guessit_langs:
             lang_str = str(l).lower()
             if lang_str in ['es', 'spanish'] and is_esub and 'spanish' not in fname_lower: continue
             found_langs.append(secret.LANG_MAP.get(lang_str, lang_str.capitalize()))
-            
+           
     if 'dual' in fname_lower: found_langs.append('Dual Audio')
     if 'multi' in fname_lower: found_langs.append('Multi Audio')
     if 'hin' in fname_lower and 'Hindi' not in found_langs: found_langs.append('Hindi')
@@ -107,11 +87,10 @@ def detect_languages(filename, guessit_langs):
     if 'tel' in fname_lower and 'Telugu' not in found_langs: found_langs.append('Telugu')
     if 'kor' in fname_lower and 'Korean' not in found_langs: found_langs.append('Korean')
     if 'eng' in fname_lower and 'English' not in found_langs: found_langs.append('English')
-    
+   
     unique_langs = list(dict.fromkeys(found_langs))
     if not unique_langs: return "Unknown"
     return " & ".join(unique_langs)
-
 async def get_real_resolution(file_id, context):
     try:
         tg_file = await context.bot.get_file(file_id)
@@ -136,19 +115,17 @@ async def get_real_resolution(file_id, context):
         os.unlink(tmp_path)
         return res_display
     except: return None
-
 def fetch_smart_metadata(title, year, original_filename):
     tm_key = random.choice(secret.TMDB_KEYS)
     om_key = random.choice(secret.OMDB_KEYS)
     query = title.strip()
     data = {"title": title, "rating": "N/A", "genres": "Misc", "date": "N/A", "type": "movie"}
     is_anime_hint = 'anime' in original_filename.lower() or 'judas' in original_filename.lower()
-
     try:
         url = f"https://api.themoviedb.org/3/search/multi?api_key={tm_key}&query={requests.utils.quote(query)}"
         res = requests.get(url, timeout=5).json()
         if res.get('results'):
-            best_item = res['results'][0] 
+            best_item = res['results'][0]
             if year:
                 for item in res['results']:
                     item_date = item.get('release_date') or item.get('first_air_date') or ""
@@ -158,11 +135,11 @@ def fetch_smart_metadata(title, year, original_filename):
             data['type'] = 'series' if best_item.get('media_type') == 'tv' else 'movie'
             genre_list = [secret.TMDB_GENRES.get(g_id) for g_id in best_item.get('genre_ids', []) if g_id in secret.TMDB_GENRES]
             if genre_list: data['genres'] = ", ".join(genre_list[:3])
-            
+           
             country = best_item.get('origin_country', [''])[0] if best_item.get('origin_country') else ''
             language = best_item.get('original_language', '')
             is_animation = 16 in best_item.get('genre_ids', [])
-            
+           
             if is_animation and (country == 'JP' or language == 'ja'): data['type'] = 'anime'
             elif data['type'] == 'series':
                 if country == 'KR' or language == 'ko': data['type'] = 'kdrama'
@@ -172,12 +149,11 @@ def fetch_smart_metadata(title, year, original_filename):
                 if country == 'IN' or language in ['hi', 'ta', 'te', 'ml']: data['type'] = 'indian'
                 elif country == 'KR' or language == 'ko': data['type'] = 'kmovie'
                 elif country == 'JP' or language == 'ja': data['type'] = 'jmovie'
-                
+               
             data['title'] = best_item.get('title') or best_item.get('name') or title
             data['rating'] = f"{round(best_item.get('vote_average', 0), 1)} ⭐" if best_item.get('vote_average') else "N/A"
             data['date'] = (best_item.get('release_date') or best_item.get('first_air_date') or "N/A")[:4]
     except: pass
-
     if data['rating'] == 'N/A' and data['type'] in ['series', 'kdrama', 'cdrama', 'jdrama']:
         try:
             res = requests.get(f"https://api.tvmaze.com/singlesearch/shows?q={requests.utils.quote(query)}", timeout=5).json()
@@ -187,7 +163,6 @@ def fetch_smart_metadata(title, year, original_filename):
                 data['date'] = res.get('premiered', data['date'])[:4] if res.get('premiered') else data['date']
                 if res.get('genres'): data['genres'] = ", ".join(res['genres'][:3])
         except: pass
-
     if data['type'] == 'anime' or is_anime_hint:
         try:
             res = requests.get(f"https://api.jikan.moe/v4/anime?q={requests.utils.quote(query)}&limit=1", timeout=5).json()
@@ -202,7 +177,6 @@ def fetch_smart_metadata(title, year, original_filename):
                 return data
         except: pass
     return data
-
 async def safe_reply(msg_obj, text, **kwargs):
     try:
         return await msg_obj.reply_text(text, **kwargs)
@@ -211,7 +185,6 @@ async def safe_reply(msg_obj, text, **kwargs):
             kwargs.pop('message_effect_id', None)
             return await msg_obj.reply_text(text, **kwargs)
         raise e
-
 # ================= KEYBOARDS =================
 def get_main_menu_markup():
     return InlineKeyboardMarkup([
@@ -219,40 +192,35 @@ def get_main_menu_markup():
         [InlineKeyboardButton("📚 How to Use", callback_data="help_menu", api_kwargs={"style": "danger"}), InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu", api_kwargs={"style": "success"})],
         [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "primary"})],
         # 🔥 DEVELOPER BUTTON: Bottom, Center, Single Line
-        [InlineKeyboardButton("👨‍💻 Developer", web_app=WebAppInfo(url="https://github.com/LastPerson07"))]
+        [InlineKeyboardButton("👨‍💻 Developer", web_app=WebAppInfo(url="https://github.com/LastPerson07"), api_kwargs={"style": "primary"})]
     ])
-
 def get_help_menu_markup():
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu", api_kwargs={"style": "danger"})]])
-
 def get_media_markup(title, is_generated=False):
     imdb_url = f"https://www.imdb.com/find/?q={requests.utils.quote(title.replace(' ', '+'))}"
     buttons = []
-    
+   
     if not is_generated:
         buttons.append([InlineKeyboardButton("🔗 Generate Direct Links", callback_data="ask_timer", api_kwargs={"style": "primary"})])
     else:
         buttons.append([InlineKeyboardButton("✅ Links Generated Below", callback_data="ignore", api_kwargs={"style": "danger"})])
-        
+       
     buttons.append([InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "danger"}), InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "success"})])
-    
+   
     return InlineKeyboardMarkup(buttons)
-
 def get_timer_markup():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🕒 1 Hour", callback_data="timer_1", api_kwargs={"style": "primary"}), InlineKeyboardButton("🕒 6 Hours", callback_data="timer_6", api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("🕒 12 Hours", callback_data="timer_12", api_kwargs={"style": "primary"}), InlineKeyboardButton("🕒 24 Hours", callback_data="timer_24", api_kwargs={"style": "danger"})],
         [InlineKeyboardButton("⬅️ Cancel", callback_data="cancel_timer", api_kwargs={"style": "danger"})]
     ])
-
 def get_url_markup(hash_id):
     dl_url = f"{DOMAIN}/dl/{hash_id}"
     watch_url = f"{DOMAIN}/watch/{hash_id}"
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🚀 FAST DOWNLOAD", url=dl_url, api_kwargs={"style": "primary"})],
-        [InlineKeyboardButton("🖥️ INSTANT STREAM", web_app=WebAppInfo(url=watch_url))]
+        [InlineKeyboardButton("🖥️ INSTANT STREAM", web_app=WebAppInfo(url=watch_url), api_kwargs={"style": "success"})]
     ])
-
 async def send_recon_log(user, context):
     if not secret.LOG_CHANNEL_ID: return
     username_fmt = f"@{user.username}" if user.username else "N/A"
@@ -263,7 +231,6 @@ async def send_recon_log(user, context):
         if photos.total_count > 0: await context.bot.send_photo(chat_id=secret.LOG_CHANNEL_ID, photo=photos.photos[0][-1].file_id, caption=log_text, parse_mode=ParseMode.HTML, disable_notification=True)
         else: await context.bot.send_message(chat_id=secret.LOG_CHANNEL_ID, text=log_text, parse_mode=ParseMode.HTML, disable_notification=True)
     except Exception as e: pass
-
 # ================= UTILITY & DIAGNOSTIC COMMANDS =================
 async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
@@ -272,19 +239,16 @@ async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("📶 Pinging Server...", parse_mode=ParseMode.HTML)
     end_t = time.time()
     await msg.edit_text(f"🏓 <b>Pong!</b>\n<blockquote>Latency: <code>{round((end_t - start_t) * 1000)}ms</code></blockquote>", parse_mode=ParseMode.HTML)
-
 async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
     text = f"<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n<blockquote>👤 <b>Your User ID:</b> <code>{update.effective_user.id}</code>\n💬 <b>Chat ID:</b> <code>{update.effective_chat.id}</code></blockquote>"
     await safe_reply(update.message, text, parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
-
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
     text = f"<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n<blockquote>🟢 <b>SYSTEM STATUS:</b> Online\n⏱ <b>Uptime:</b> <code>{admin.get_uptime()}</code>\n⚙️ <b>Workers:</b> {secret.WORKERS}</blockquote>"
     await safe_reply(update.message, text, parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
-
 async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
@@ -292,54 +256,48 @@ async def alive_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
     except: pass
     await safe_reply(update.message, "<b>Yes darling, I am alive. Don't worry! 😘</b>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
-
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
     await safe_reply(update.message, "<b>🚀 Send me any Movie, Series, or Anime file and I will process it instantly!</b>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
-
 # ================= START / HELP / INFO HANDLERS =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     user = update.effective_user
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
-
     if await db.get_maintenance() and user.id != secret.ADMIN_ID:
         return await update.message.reply_text("🚧 <b>MAINTENANCE MODE</b>\n\n<blockquote>The bot is currently undergoing upgrades. Please try again later.</blockquote>", parse_mode=ParseMode.HTML)
-
     is_new = await db.add_user(user.id, user.first_name, user.username)
     if is_new: await send_recon_log(user, context)
-    
+   
     if not await fsub.is_user_subscribed(context.bot, user.id):
         img = await get_img()
         sent_msg = await update.message.reply_photo(
-            photo=img, 
-            caption=fsub.get_fsub_text(esc(user.first_name)), 
-            reply_markup=fsub.get_fsub_markup(), 
+            photo=img,
+            caption=fsub.get_fsub_text(esc(user.first_name)),
+            reply_markup=fsub.get_fsub_markup(),
             parse_mode=ParseMode.HTML
         )
         try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("🛑"), is_big=True)
         except: pass
         return
-    
+   
     try:
         sticker_msg = await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
         await asyncio.sleep(1.2)
         await sticker_msg.delete()
     except: pass
-
     img = await get_img()
     sent_msg = await update.message.reply_photo(
-        photo=img, 
-        caption=START_TEXT.format(name=esc(user.first_name)), 
-        parse_mode=ParseMode.HTML, 
+        photo=img,
+        caption=START_TEXT.format(name=esc(user.first_name)),
+        parse_mode=ParseMode.HTML,
         reply_markup=get_main_menu_markup()
     )
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("⚡"), is_big=True)
     except: pass
-
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
@@ -347,7 +305,6 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sent_msg = await update.message.reply_photo(photo=img, caption=HELP_TEXT, parse_mode=ParseMode.HTML, reply_markup=get_help_menu_markup())
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("📚"), is_big=True)
     except: pass
-
 async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
@@ -356,7 +313,6 @@ async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sent_msg = await update.message.reply_photo(photo=img, caption=INFO_TEXT, parse_mode=ParseMode.HTML, reply_markup=markup)
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("ℹ️"), is_big=True)
     except: pass
-
 async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
@@ -371,7 +327,6 @@ async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sent_msg = await update.message.reply_photo(photo=img, caption=text, parse_mode=ParseMode.HTML, reply_markup=markup)
     try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("⚙️"), is_big=True)
     except: pass
-
 async def feedback_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
@@ -383,7 +338,6 @@ async def feedback_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=secret.ADMIN_ID, text=admin_msg, parse_mode=ParseMode.HTML)
         await safe_reply(update.message, "✅ <b>Feedback Sent Successfully!</b>\n<blockquote>Thank you for helping us improve the engine.</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     except Exception: await update.message.reply_text("❌ Failed to send feedback to the developer.", parse_mode=ParseMode.HTML)
-
 # ================= PREMIUM COMMANDS =================
 async def set_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -394,69 +348,59 @@ async def set_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not custom_text: return await update.message.reply_text("❌ <b>Format:</b> <code>/set_caption Your custom text here</code>", parse_mode=ParseMode.HTML)
     await db.set_caption(user_id, custom_text)
     await safe_reply(update.message, "✅ <b>SUCCESS:</b> Custom caption saved!\n<blockquote>It will now appear at the bottom of your files.</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
-
 async def del_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
     await db.del_caption(update.effective_user.id)
     await safe_reply(update.message, "🗑️ Custom caption removed. Reverted to default.", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
-
 async def my_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
     except: pass
     cap = await db.get_caption(update.effective_user.id)
     if cap: await safe_reply(update.message, f"📝 <b>Your Custom Caption:</b>\n\n<blockquote>{cap}</blockquote>", parse_mode=ParseMode.HTML, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
     else: await update.message.reply_text("You have no custom caption set. Using default.", parse_mode=ParseMode.HTML)
-
 # ================= MEDIA ENGINE =================
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     msg = query.message if query else update.message
     if not msg: return
     user = update.effective_user
-
     if await db.get_maintenance() and user.id != secret.ADMIN_ID:
         return await msg.reply_text("🚧 <b>MAINTENANCE MODE</b>\n\n<blockquote>The bot is currently undergoing upgrades. Please try again later.</blockquote>", parse_mode=ParseMode.HTML)
-
     if not await fsub.is_user_subscribed(context.bot, user.id):
         img = await get_img()
         sent_msg = await msg.reply_photo(
-            photo=img, 
-            caption=fsub.get_fsub_text(esc(user.first_name)), 
-            reply_markup=fsub.get_fsub_markup(), 
+            photo=img,
+            caption=fsub.get_fsub_text(esc(user.first_name)),
+            reply_markup=fsub.get_fsub_markup(),
             parse_mode=ParseMode.HTML
         )
         try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("🛑"), is_big=True)
         except: pass
         return
-
     if user:
         if await db.is_banned(user.id): return await msg.reply_text("🔨 <b>ACCESS DENIED:</b> You are permanently banned.", parse_mode=ParseMode.HTML)
         if await db.check_limit(user.id): return await msg.reply_text("⚠️ <b>DAILY LIMIT REACHED!</b>\n<blockquote>You used your 10 free renames today.\n<i>Upgrade to Premium for unlimited!</i></blockquote>", parse_mode=ParseMode.HTML)
-
     media = msg.document or msg.video
     if not media: return
-
     if update.message:
         try: await update.message.set_reaction(reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
         except: pass
-
     loading_sticker = None
     if not query:
         try:
             loading_sticker = await msg.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
             await asyncio.sleep(1.2)
         except: pass
-
     # 🔥 FIX: Crash prevention for missing filenames
     original_name = getattr(media, 'file_name', None) or 'Unknown_File.mkv'
-    
+   
     clean_original = pre_clean_filename(original_name)
     parsed = guessit(clean_original)
-    
+   
     search_q = parsed.get('title', 'Unknown')
-    search_year = parsed.get('year') 
-    
+    search_year = parsed.get('year')
+   
     info = fetch_smart_metadata(search_q, search_year, original_name)
     size = format_size(getattr(media, 'file_size', 0))
     audio = detect_languages(original_name, parsed.get('language'))
@@ -464,7 +408,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not real_res:
         g_res = parsed.get('screen_size')
         real_res = f"FHD (1080p)" if str(g_res) == '1080p' else (f"HD (720p)" if str(g_res) == '720p' else str(g_res or 'FHD (1080p)'))
-
     header_map = {
         'kdrama': ("🎭 <b>𝗞-𝗗𝗥𝗔𝗠𝗔 𝗘𝗗𝗜𝗧𝗜𝗢𝗡</b> 🎭", "🍿", "🇰🇷"),
         'cdrama': ("🏮 <b>𝗖-𝗗𝗥𝗔𝗠𝗔 𝗘𝗗𝗜𝗧𝗜𝗢𝗡</b> 🏮", "🍿", "🇨🇳"),
@@ -477,32 +420,27 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'movie': ("🎬 <b>𝗠𝗢𝗩𝗜𝗘 𝗘𝗗𝗜𝗧𝗜𝗢𝗡</b> 🎬", "🎥", "⭐")
     }
     h_data = header_map.get(info['type'], header_map['movie'])
-    
+   
     custom_footer = "⚡ <b>Pᴏᴡᴇʀᴇᴅ Bʏ :</b> @THEUPDATEDGUYS"
     if await db.check_premium_status(user.id):
         user_cap = await db.get_caption(user.id)
         if user_cap: custom_footer = user_cap
-
     caption = f"""
 {h_data[0]}
 <blockquote><b>{esc(info['title'])}</b></blockquote>
-
 {h_data[1]} <b>Media Details:</b>
-├ {h_data[2]} <b>Rating   :</b> <code>{esc(info['rating'])}</code>
-├ 🎭 <b>Genres   :</b> <i>{esc(info['genres'])}</i>
-├ 📅 <b>Release  :</b> <code>{esc(info['date'])}</code>
-├ 🔊 <b>Audio    :</b> <code>{esc(audio)}</code>
-├ 🖥️ <b>Quality  :</b> <code>{esc(real_res)}</code>
-╰ 💾 <b>Size     :</b> <code>{esc(size)}</code>
-
+├ {h_data[2]} <b>Rating :</b> <code>{esc(info['rating'])}</code>
+├ 🎭 <b>Genres :</b> <i>{esc(info['genres'])}</i>
+├ 📅 <b>Release :</b> <code>{esc(info['date'])}</code>
+├ 🔊 <b>Audio :</b> <code>{esc(audio)}</code>
+├ 🖥️ <b>Quality :</b> <code>{esc(real_res)}</code>
+╰ 💾 <b>Size :</b> <code>{esc(size)}</code>
 {custom_footer}
 """
     markup = get_media_markup(info['title'])
-
     if loading_sticker:
         try: await loading_sticker.delete()
         except: pass
-
     if query:
         try: await query.edit_message_caption(caption=caption, parse_mode=ParseMode.HTML, reply_markup=markup)
         except BadRequest as e:
@@ -511,7 +449,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sent_msg = await context.bot.copy_message(chat_id=msg.chat.id, from_chat_id=msg.chat.id, message_id=msg.message_id, caption=caption, parse_mode=ParseMode.HTML, reply_markup=markup)
         try: await context.bot.set_message_reaction(chat_id=msg.chat.id, message_id=sent_msg.message_id, reaction=ReactionTypeEmoji(random.choice(secret.EMOJIS)), is_big=True)
         except: pass
-
         if user:
             await db.add_traffic(user.id)
             if secret.LOG_CHANNEL_ID:
@@ -519,34 +456,36 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     log_cap = f"📁 <b>FILE PROCESSED</b>\n\n<blockquote>👤 <b>User:</b> {esc(user.first_name)} [<code>{user.id}</code>]\n🎬 <b>Title:</b> {esc(info['title'])}\n💾 <b>Size:</b> {size}</blockquote>"
                     await context.bot.copy_message(chat_id=secret.LOG_CHANNEL_ID, from_chat_id=msg.chat.id, message_id=msg.message_id, caption=log_cap, parse_mode=ParseMode.HTML, disable_notification=True)
                 except Exception: pass
-
+def get_title_from_caption(caption):
+    if not caption:
+        return "Unknown"
+    match = re.search(r'<blockquote><b>(.*?)</b></blockquote>', caption, re.DOTALL)
+    return match.group(1) if match else "Unknown"
 # ================= CALLBACK ROUTER =================
 async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    
+   
     user_id = update.effective_user.id
     now = time.time()
     if query.data in ["ask_timer"] or query.data.startswith("timer_"):
         if user_id in SPAM_CACHE and now - SPAM_CACHE[user_id] < 3:
             return await query.answer("⚠️ Please wait a moment... do not spam!", show_alert=True)
         SPAM_CACHE[user_id] = now
-
-    await query.answer() 
+    await query.answer()
     data = query.data
     img = await get_img()
-    
+   
     if data == "ignore":
         return
-
     if data == "check_fsub":
         if await fsub.is_user_subscribed(context.bot, update.effective_user.id):
             await query.answer("✅ Verified! Welcome to the bot.", show_alert=True)
             await query.message.delete()
             sent_msg = await context.bot.send_photo(
                 chat_id=query.message.chat.id,
-                photo=img, 
-                caption=START_TEXT.format(name=esc(update.effective_user.first_name)), 
-                parse_mode=ParseMode.HTML, 
+                photo=img,
+                caption=START_TEXT.format(name=esc(update.effective_user.first_name)),
+                parse_mode=ParseMode.HTML,
                 reply_markup=get_main_menu_markup()
             )
             try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("⚡"), is_big=True)
@@ -554,33 +493,29 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("❌ You haven't joined the channel yet! Please join first.", show_alert=True)
         return
-
     if data == "ask_timer":
         media = query.message.document or query.message.video
         if not media: return await query.answer("❌ No file detected.", show_alert=True)
         await query.edit_message_reply_markup(reply_markup=get_timer_markup())
-
     elif data == "cancel_timer":
-        media = query.message.document or query.message.video
-        file_name = getattr(media, 'file_name', 'Unknown') if media else 'Unknown'
-        await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name))
-
+        title = get_title_from_caption(query.message.caption)
+        await query.edit_message_reply_markup(reply_markup=get_media_markup(title))
     elif data.startswith("timer_"):
         hours = int(data.split("_")[1])
         media = query.message.document or query.message.video
         if not media: return await query.answer("❌ File not found.", show_alert=True)
-        
+       
         await query.answer("🔐 Generating 4GB MTProto Link...", show_alert=True)
-        
+       
         file_hash = timer.generate_hash()
         expires_at = timer.get_expiry_date(hours)
         file_name = getattr(media, 'file_name', 'Unknown.mkv')
         size = format_size(getattr(media, 'file_size', 0))
-        
+       
         chat_id = query.message.chat.id
         message_id = query.message.message_id
         await db.save_link(file_hash, chat_id, message_id, file_name, size, expires_at)
-        
+       
         link_text = (
             f"<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b>\n\n"
             f"✅ <b>Your links are ready!</b>\n\n"
@@ -589,11 +524,11 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"⏳ <b>Expires In:</b> {hours} hours</blockquote>\n\n"
             f"<i>⚠️ These links are temporary and will expire automatically. Please avoid sharing them.</i>"
         )
-        
-        await query.edit_message_reply_markup(reply_markup=get_media_markup(file_name, is_generated=True))
-        
+       
+        title = get_title_from_caption(query.message.caption)
+        await query.edit_message_reply_markup(reply_markup=get_media_markup(title, is_generated=True))
+       
         await safe_reply(query.message, text=link_text, parse_mode=ParseMode.HTML, reply_markup=get_url_markup(file_hash), disable_web_page_preview=True, message_effect_id=random.choice(secret.MESSAGE_EFFECTS))
-
     elif data == "help_menu":
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=HELP_TEXT, parse_mode=ParseMode.HTML), reply_markup=get_help_menu_markup())
         except BadRequest: pass
@@ -613,4 +548,3 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "main_menu":
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=START_TEXT.format(name=esc(update.effective_user.first_name)), parse_mode=ParseMode.HTML), reply_markup=get_main_menu_markup())
         except BadRequest: pass
-

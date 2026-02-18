@@ -1,7 +1,7 @@
 import os
 
 # 🚨 CORE CREDENTIALS 🚨
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8599301566:AAFwNNcj09rtEW3zPF4k-k1llr2z2EhBk7w")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8599301566:AAGAVXJN7hi-LxklclAMPQMRZt6aPN6v1aw")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://LastPerson07:N7z0DRcklsZzqCzd@storagebot.5fuk3xn.mongodb.net/?appName=StorageBot")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "1633472140"))
 
@@ -52,6 +52,7 @@ LANG_MAP = {'hi': 'Hindi', 'en': 'English', 'ja': 'Japanese', 'ta': 'Tamil', 'te
 
 START_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b> <b>Hey {name}! Welcome aboard ⚡️</b> <blockquote>I’m here to make renaming, organizing, and sharing your media simple and hassle-free.</blockquote> <b>What I can do for you:</b> ├ 🎬 <b>Accurate Details:</b> Fetches trusted IMDb & TMDB information. ├ 🔎 <b>Smart Detection:</b> Automatically recognizes Anime, K-Dramas, Movies, and Series. ├ 🎧 <b>Media Analysis:</b> Identifies audio languages and video quality with precision. ├ 🔗 <b>File-to-Link:</b> Instantly converts your files into shareable download links. ╰ 🖼 <b>Clean Results:</b> Keeps posters and thumbnails intact for a polished look."""
 HELP_TEXT = """<b><u><blockquote>The Updated Renamer 😎</blockquote></u></b> <b>🛠️ How to Use</b> <blockquote>1️⃣ <b>Send or forward</b> any movie, series, anime, or media file. 2️⃣ I’ll clean unnecessary tags and organize the filename. 3️⃣ Then I search trusted databases to fetch accurate details. 4️⃣ Finally, you’ll receive a neatly renamed file with proper thumbnails — and you can even convert it into a shareable link.</blockquote>"""
+
 
 
 

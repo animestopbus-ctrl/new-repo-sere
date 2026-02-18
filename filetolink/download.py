@@ -18,7 +18,7 @@ async def handle_download(request: web.Request) -> web.StreamResponse:
         if not media:
             return web.Response(text="❌ Media not found", status=404)
         file_size = int(getattr(media, 'file_size', 0))
-        filename = link_data.get("file_name") or getattr(media, 'file_name', 'file')
+        filename = link_data.get('file_name') or getattr(media, 'file_name', 'file')  # Fix: Handle None
         offset = 0
         limit = file_size - 1
         range_header = request.headers.get('Range')
@@ -60,9 +60,7 @@ async def handle_download(request: web.Request) -> web.StreamResponse:
             offset_bytes=offset,
             limit_bytes=limit,
             workers=worker_count, # Apply our smart worker logic
-            # Render Free Tier Safety Settings:
-            chunk_size=1024 * 1024, # 1MB Chunks (Perfect balance)
-            # batch_chunks removed as it's not in the new simple TurboStreamer
+            # Removed chunk_size: It's hardcoded in fast.py
         )
         async for chunk in streamer.generate():
             try:

@@ -18,6 +18,7 @@ import secret
 from database.db import db
 import admin
 from filetolink import timer
+import fsub # 🔥 NEW FSUB ENGINE IMPORT
 
 # 🔥 DYNAMIC DOMAIN ENGINE
 DOMAIN = os.getenv("RENDER_EXTERNAL_URL", os.getenv("WEB_URL", "https://new-repo-sere.onrender.com")).rstrip('/')
@@ -97,11 +98,10 @@ async def get_real_resolution(file_id, context):
         return res_display
     except: return None
 
-def fetch_smart_metadata(title, year, original_filename, force_reverify=False):
+def fetch_smart_metadata(title, year, original_filename):
     tm_key = random.choice(secret.TMDB_KEYS)
     om_key = random.choice(secret.OMDB_KEYS)
     query = title.strip()
-    if force_reverify: query = query.split(' ')[0].split('.')[0]
     data = {"title": title, "rating": "N/A", "genres": "Misc", "date": "N/A", "type": "movie"}
     is_anime_hint = 'anime' in original_filename.lower() or 'judas' in original_filename.lower()
 
@@ -174,13 +174,13 @@ async def safe_reply(msg_obj, text, **kwargs):
             return await msg_obj.reply_text(text, **kwargs)
         raise e
 
-# ================= KEYBOARDS & FSUB =================
+# ================= KEYBOARDS =================
 def get_main_menu_markup():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 JOIN OFFICIAL CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "primary"})],
-        [InlineKeyboardButton("📚 How to Use", callback_data="help_menu", api_kwargs={"style": "primary"}), InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu", api_kwargs={"style": "success"})],
+        [InlineKeyboardButton("📚 How to Use", callback_data="help_menu", api_kwargs={"style": "danger"}), InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu", api_kwargs={"style": "success"})],
         [InlineKeyboardButton("👨‍💻 Developer", web_app=WebAppInfo(url="https://github.com/LastPerson07")), InlineKeyboardButton("🤝 Affiliated Dev", web_app=WebAppInfo(url="https://github.com/abhinai2244"))],
-        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "primary"})]
+        [InlineKeyboardButton("ℹ️ Bot Info", callback_data="info_menu", api_kwargs={"style": "danger"})]
     ])
 
 def get_help_menu_markup():
@@ -190,8 +190,7 @@ def get_media_markup(title):
     imdb_url = f"https://www.imdb.com/find/?q={requests.utils.quote(title.replace(' ', '+'))}"
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔗 Generate Direct Links", callback_data="ask_timer", api_kwargs={"style": "primary"})],
-        [InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "primary"}), InlineKeyboardButton("🔄 RE-VERIFY", callback_data="reverify", api_kwargs={"style": "danger"})],
-        [InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "success"})]
+        [InlineKeyboardButton("🎬 IMDB INFO", url=imdb_url, api_kwargs={"style": "danger"}), InlineKeyboardButton("📢 JOIN CHANNEL", url="https://t.me/THEUPDATEDGUYS", api_kwargs={"style": "success"})]
     ])
 
 def get_timer_markup():
@@ -201,31 +200,13 @@ def get_timer_markup():
         [InlineKeyboardButton("⬅️ Cancel", callback_data="cancel_timer", api_kwargs={"style": "danger"})]
     ])
 
-# 🔥 CRITICAL FIX: Mini App Integration
 def get_url_markup(hash_id):
     dl_url = f"{DOMAIN}/dl/{hash_id}"
     watch_url = f"{DOMAIN}/watch/{hash_id}"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚀 FAST DOWNLOAD", url=dl_url)],
-        # The stream button now triggers a Telegram Web App inside the chat!
+        [InlineKeyboardButton("🚀 FAST DOWNLOAD", url=dl_url, api_kwargs={"style": "primary"})],
         [InlineKeyboardButton("🖥️ INSTANT STREAM", web_app=WebAppInfo(url=watch_url))]
     ])
-
-async def is_subscribed(user_id, context):
-    if not secret.FSUB_CHANNEL_ID: return True
-    try:
-        member = await context.bot.get_chat_member(chat_id=secret.FSUB_CHANNEL_ID, user_id=user_id)
-        if member.status in ['left', 'kicked', 'banned']: return False
-        return True
-    except Exception: return True 
-
-async def send_fsub_blocker(msg):
-    btn = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 JOIN THE CHANNEL TO USE BOT", url=secret.FSUB_CHANNEL_LINK, api_kwargs={"style": "danger"})]])
-    fsub_text = "<b><u><blockquote>THE UPDATED GUYS 😎</blockquote></u></b>\n\n<b>🛑 ACCESS DENIED!</b>\n\n<blockquote>You must join our official channel to use this bot. Click the button below to join, and then try again.</blockquote>"
-    img = await get_img()
-    sent_msg = await msg.reply_photo(photo=img, caption=fsub_text, reply_markup=btn, parse_mode=ParseMode.HTML)
-    try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("🛑"), is_big=True)
-    except: pass
 
 async def send_recon_log(user, context):
     if not secret.LOG_CHANNEL_ID: return
@@ -284,8 +265,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     is_new = await db.add_user(user.id, user.first_name, user.username)
     if is_new: await send_recon_log(user, context)
-    if not await is_subscribed(user.id, context):
-        return await send_fsub_blocker(update.message)
+    
+    # 🔥 FSUB INTEGRATION: Blocks access natively on Start
+    if not await fsub.is_user_subscribed(context.bot, user.id):
+        img = await get_img()
+        sent_msg = await update.message.reply_photo(
+            photo=img, 
+            caption=fsub.get_fsub_text(esc(user.first_name)), 
+            reply_markup=fsub.get_fsub_markup(), 
+            parse_mode=ParseMode.HTML
+        )
+        try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("🛑"), is_big=True)
+        except: pass
+        return
     
     try:
         sticker_msg = await update.message.reply_sticker(sticker=random.choice(secret.LOADING_STICKERS))
@@ -373,7 +365,7 @@ async def my_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else: await update.message.reply_text("You have no custom caption set. Using default.", parse_mode=ParseMode.HTML)
 
 # ================= MEDIA ENGINE =================
-async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force_reverify=False):
+async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     msg = query.message if query else update.message
     if not msg: return
@@ -382,8 +374,18 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
     if await db.get_maintenance() and user.id != secret.ADMIN_ID:
         return await msg.reply_text("🚧 <b>MAINTENANCE MODE</b>\n\n<blockquote>The bot is currently undergoing upgrades. Please try again later.</blockquote>", parse_mode=ParseMode.HTML)
 
-    if not await is_subscribed(user.id, context):
-        return await send_fsub_blocker(msg)
+    # 🔥 FSUB INTEGRATION: Protects media generation
+    if not await fsub.is_user_subscribed(context.bot, user.id):
+        img = await get_img()
+        sent_msg = await msg.reply_photo(
+            photo=img, 
+            caption=fsub.get_fsub_text(esc(user.first_name)), 
+            reply_markup=fsub.get_fsub_markup(), 
+            parse_mode=ParseMode.HTML
+        )
+        try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("🛑"), is_big=True)
+        except: pass
+        return
 
     if user:
         if await db.is_banned(user.id): return await msg.reply_text("🔨 <b>ACCESS DENIED:</b> You are permanently banned.", parse_mode=ParseMode.HTML)
@@ -410,7 +412,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE, force
     search_q = parsed.get('title', 'Unknown')
     search_year = parsed.get('year') 
     
-    info = fetch_smart_metadata(search_q, search_year, original_name, force_reverify=force_reverify)
+    info = fetch_smart_metadata(search_q, search_year, original_name)
     size = format_size(getattr(media, 'file_size', 0))
     audio = detect_languages(original_name, parsed.get('language'))
     real_res = await get_real_resolution(media.file_id, context)
@@ -480,6 +482,25 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     img = await get_img()
 
+    # 🔥 FSUB VERIFICATION LISTENER
+    if data == "check_fsub":
+        if await fsub.is_user_subscribed(context.bot, update.effective_user.id):
+            await query.answer("✅ Verified! Welcome to the bot.", show_alert=True)
+            await query.message.delete()
+            # Shows them the welcome menu instantly
+            sent_msg = await context.bot.send_photo(
+                chat_id=query.message.chat.id,
+                photo=img, 
+                caption=secret.START_TEXT.format(name=esc(update.effective_user.first_name)), 
+                parse_mode=ParseMode.HTML, 
+                reply_markup=get_main_menu_markup()
+            )
+            try: await sent_msg.set_reaction(reaction=ReactionTypeEmoji("⚡"), is_big=True)
+            except: pass
+        else:
+            await query.answer("❌ You haven't joined the channel yet! Please join first.", show_alert=True)
+        return
+
     if data == "ask_timer":
         media = query.message.document or query.message.video
         if not media: return await query.answer("❌ No file detected.", show_alert=True)
@@ -538,6 +559,3 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "main_menu":
         try: await query.edit_message_media(media=InputMediaPhoto(media=img, caption=secret.START_TEXT.format(name=esc(update.effective_user.first_name)), parse_mode=ParseMode.HTML), reply_markup=get_main_menu_markup())
         except BadRequest: pass
-    elif data == "reverify":
-        await query.answer("🔄 Deep Match Protocol...", show_alert=True)
-        await handle_media(update, context, force_reverify=True)
